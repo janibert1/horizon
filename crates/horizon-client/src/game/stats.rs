@@ -417,7 +417,7 @@ impl Game<'_> {
         if !rules.bool("spawn_mobs")
             || !rules.bool("spawn_monsters")
             || !rules.bool("spawn_phantoms")
-            || self.dim != Dim::Overworld
+            || self.dim.kind() != Dim::Overworld
         {
             return;
         }

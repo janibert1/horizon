@@ -3156,34 +3156,65 @@ struct Game<'a> {
     /// The local player as a model (third person, the inventory).
     player_model: Option<Mob>,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-enum Dim {
-    Overworld,
-    Nether,
-    End,
-}
+/// A level of the server (`ResourceKey<Level>`): vanilla's three, or an extra level
+/// (`horizon_client::extra_levels`: a Multiverse-style world, its own folder, generator and players).
+/// An index into the level table; `Dim::Overworld`, `Dim::Nether` and `Dim::End` are vanilla's.
+/// An extra level follows the Overworld's rules: ask [`Dim::kind`] where a rule depends on the
+/// dimension type, compare the `Dim` itself where it is about the level (its chunks, its players).
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+struct Dim(u16);
+#[allow(non_upper_case_globals)]
 impl Dim {
+    const Overworld: Self = Self(0);
+    const Nether: Self = Self(1);
+    const End: Self = Self(2);
     fn id(self) -> &'static str {
-        match self {
-            Self::Overworld => "minecraft:overworld",
-            Self::Nether => "minecraft:the_nether",
-            Self::End => "minecraft:the_end",
+        horizon_client::extra_levels::id(self.0)
+    }
+    /// The level `id`; an unknown id is the Overworld (as before extra levels).
+    fn from_id(id: &str) -> Self {
+        Self::try_from_id(id).unwrap_or(Self::Overworld)
+    }
+    /// The level `id`, None when no such level exists.
+    fn try_from_id(id: &str) -> Option<Self> {
+        horizon_client::extra_levels::index(id).map(Self)
+    }
+    /// An extra level (not one of vanilla's three).
+    fn is_extra(self) -> bool {
+        self.0 > 2
+    }
+    /// The vanilla level whose dimension type it has: itself, or the Overworld for an extra level.
+    fn kind(self) -> Self {
+        if self.is_extra() {
+            Self(horizon_client::extra_levels::environment(self.0))
+        } else {
+            self
         }
     }
-    fn from_id(id: &str) -> Self {
-        match id {
-            "minecraft:the_nether" => Self::Nether,
-            "minecraft:the_end" => Self::End,
-            _ => Self::Overworld,
-        }
+    /// Every level, vanilla's first (`MinecraftServer.levels` order).
+    fn all() -> Vec<Self> {
+        horizon_client::extra_levels::all()
+            .into_iter()
+            .map(Self)
+            .collect()
     }
     /// The level's shape in a world of vanilla's dimension types.
     fn shape(self) -> horizon_client::save::LevelShape {
         use horizon_client::save::LevelShape;
-        match self {
-            Self::Overworld => LevelShape::OVERWORLD,
+        match self.kind() {
             Self::Nether => LevelShape::NETHER,
             Self::End => LevelShape::END,
+            _ => LevelShape::OVERWORLD,
+        }
+    }
+}
+impl std::fmt::Debug for Dim {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Self::Overworld => f.write_str("Overworld"),
+            Self::Nether => f.write_str("Nether"),
+            Self::End => f.write_str("End"),
+            d => write!(f, "Level({})", d.id()),
         }
     }
 }
@@ -3330,7 +3361,7 @@ impl Game<'_> {
     /// ceiling) and the End, which vanilla names by id. Every rain, thunder
     /// and lightning rule asks this, never the dimension's id.
     fn level_key(&self) -> horizon_core::LevelKey {
-        horizon_core::LevelKey::builtin_or_overworld(self.dim.id())
+        horizon_core::LevelKey::builtin_or_overworld(self.dim.kind().id())
     }
     fn dimension_type(&self) -> &'static horizon_world::dimension_type::DimensionFacts {
         horizon_world::dimension_type::DimensionFacts::of_builtin_level(self.level_key())
@@ -3340,7 +3371,7 @@ impl Game<'_> {
         dim: Dim,
     ) -> &'static horizon_world::dimension_type::DimensionFacts {
         horizon_world::dimension_type::DimensionFacts::of_builtin_level(
-            horizon_core::LevelKey::builtin_or_overworld(dim.id()),
+            horizon_core::LevelKey::builtin_or_overworld(dim.kind().id()),
         )
     }
     fn eye_position(&self) -> Option<[f64; 3]> {
@@ -3835,10 +3866,11 @@ impl Game<'_> {
             .lan_acting
             .is_some()
             .then(|| self.lan_building_boxes.boxes(self.dim));
-        let dimension = match self.dim {
+        let dimension = match self.dim.kind() {
             Dim::Overworld => LevelDimension::Overworld,
             Dim::Nether => LevelDimension::Nether,
             Dim::End => LevelDimension::End,
+            _ => unreachable!("Dim::kind is one of vanilla's levels"),
         };
         let rules = self.level_rules();
         let fire_players: Vec<[f64; 3]> = self
@@ -9226,12 +9258,7 @@ impl Game<'_> {
                     horizon_world::dimension_type::Skybox::End => 2,
                     horizon_world::dimension_type::Skybox::None => 0,
                 },
-                dimension: match self.dim {
-                    Dim::Overworld => "minecraft:overworld",
-                    Dim::Nether => "minecraft:the_nether",
-                    Dim::End => "minecraft:the_end",
-                }
-                .to_owned(),
+                dimension: self.dim.id().to_owned(),
                 player: self.player.as_ref().map_or(camera.to_array(), |p| {
                     [p.position.x, p.position.y, p.position.z]
                 }),

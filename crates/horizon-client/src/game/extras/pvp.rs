@@ -185,7 +185,7 @@ impl Game<'_> {
     /// Whether this window may draw PvP & HUD's own time and weather: only a client of a server
     /// (single player's included) draws them, never the server that ticks the world.
     fn own_view(&self) -> bool {
-        self.remote.is_some() && self.dim == Dim::Overworld
+        self.remote.is_some() && self.dim.kind() == Dim::Overworld
     }
     /// The day time the frame draws (sky, sun, moon, the sky's light): PvP & HUD's time of day,
     /// else the world's. The world's own `day_time` and everything that plays by it stay.

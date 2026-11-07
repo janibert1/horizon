@@ -295,10 +295,11 @@ impl Game<'_> {
             return PackInputs::default();
         }
         let name = selected.clone();
-        let dimension = match self.dim {
+        let dimension = match self.dim.kind() {
             Dim::Overworld => 0,
             Dim::Nether => -1,
             Dim::End => 1,
+            _ => unreachable!("Dim::kind is one of vanilla's levels"),
         };
         if (dev_pack().is_none() && selected.starts_with("horizon:"))
             || horizon_shader_api::package::is_pack(&path)

@@ -29,10 +29,11 @@ impl Game<'_> {
             return;
         };
         draws.clear();
-        let world = match self.dim {
+        let world = match self.dim.kind() {
             Dim::Overworld => Some(0),
             Dim::End => Some(1),
             Dim::Nether => None,
+            _ => unreachable!("Dim::kind returns a vanilla environment"),
         };
         let now = std::time::Instant::now();
         let seconds = self

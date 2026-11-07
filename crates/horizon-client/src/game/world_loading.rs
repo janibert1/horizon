@@ -156,6 +156,18 @@ impl WorldRequest {
         horizon_client::save::upgrade_older_world_with(&save_root, upgrade)?;
         horizon_client::save::migrate_legacy(&save_root)?;
         let session_lock = horizon_client::save::SessionLock::acquire(&save_root)?;
+        // The world's extra levels (`horizon_levels.json`), before any level or player names one.
+        // The table lives for the process: a server opens one world.
+        let (extra, problems) = horizon_client::extra_levels::load(&save_root);
+        for p in problems {
+            log::warn!("Horizon: {p}");
+        }
+        if extra > 0 {
+            log::info!(
+                "Horizon: {extra} extra level(s): {}",
+                horizon_client::extra_levels::extra_ids().join(", ")
+            );
+        }
         // RandomSequences: the world's data/minecraft/random_sequences.dat.
         let rand_sequences =
             horizon_client::save::read_dat(&save_root.join("data/minecraft/random_sequences.dat"))
@@ -723,6 +735,22 @@ pub(super) fn make_streaming(
     seed: i64,
     enabled_features: &[String],
 ) -> Result<(Streaming, Arc<SaveDir>, Option<Arc<VanillaTerrain>>)> {
+    // An extra level (`horizon_client::extra_levels`): its own generator; a `normal` one may have its own seed.
+    let extra = horizon_client::extra_levels::get(dim.0);
+    let seed = match &extra {
+        Some(horizon_client::extra_levels::ExtraLevel {
+            generator: horizon_client::extra_levels::Generator::Normal { seed: Some(s) },
+            ..
+        }) => *s,
+        _ => seed,
+    };
+    // The settings the flat and debug generators read: the world's for the Overworld, an extra level's own.
+    let level_gen_settings = || match &extra {
+        Some(e) => horizon_client::extra_levels::flat_settings(&e.generator),
+        None => (dim == Dim::Overworld)
+            .then(|| horizon_client::save::world_gen_settings(world_root))
+            .flatten(),
+    };
     let save = Arc::new(SaveDir::new(
         horizon_client::save::dimension_dir(world_root, dim.id()),
         shape,
@@ -743,19 +771,16 @@ pub(super) fn make_streaming(
         enabled_features,
     );
     let mut locator = None;
-    let flat = (dim == Dim::Overworld)
-        .then(|| horizon_client::save::world_gen_settings(world_root))
-        .flatten()
-        .and_then(|s| {
-            horizon_client::flatgen::FlatTerrain::from_settings(
-                &s,
-                pack.assets.registry,
-                res.biomes(),
-                shape,
-            )
-        });
+    let flat = level_gen_settings().and_then(|s| {
+        horizon_client::flatgen::FlatTerrain::from_settings(
+            &s,
+            pack.assets.registry,
+            res.biomes(),
+            shape,
+        )
+    });
     // `DebugLevelSource`: the overworld of the Debug preset.
-    let debug = (dim == Dim::Overworld)
+    let debug = (dim == Dim::Overworld && extra.is_none())
         .then(|| horizon_client::save::world_gen_settings(world_root))
         .flatten()
         .and_then(|s| {
@@ -769,11 +794,10 @@ pub(super) fn make_streaming(
     // PlaceCommand.placeJigsaw/placeStructure generate directly, independently
     // of WorldOptions.generateStructures. Keep their flat locator available
     // even when automatic structure starts are disabled.
-    let automatic_structures =
-        horizon_client::save::WorldGen::read(world_root).is_none_or(|w| w.structures);
-    let flat_settings = (dim == Dim::Overworld)
-        .then(|| horizon_client::save::world_gen_settings(world_root))
-        .flatten()
+    // An extra flat or void level makes no structures by itself (its `structure_overrides` is empty).
+    let automatic_structures = extra.is_none()
+        && horizon_client::save::WorldGen::read(world_root).is_none_or(|w| w.structures);
+    let flat_settings = level_gen_settings()
         .and_then(|s| horizon_client::flatgen::FlatTerrain::pipeline_settings(&s));
     // `adjustGenerationSettings`: a superflat world with features or lakes is decorated
     // whether or not its structures generate.
@@ -877,10 +901,13 @@ pub(super) fn make_streaming(
         let preset = horizon_client::save::WorldGen::preset(world_root);
         let overrides =
             world_worldgen_overrides(world_root, &options.resources, &biomes, enabled_features);
-        let saved_stem = horizon_client::save::world_gen_settings(world_root)
+        // An extra `normal` level: the Overworld's generator (its noise settings by the Overworld's id).
+        let saved_stem = (extra.is_none())
+            .then(|| horizon_client::save::world_gen_settings(world_root))
+            .flatten()
             .and_then(|s| s.get("dimensions")?.get(dim.id()).cloned())
             .map(|stem| horizon_client::scoreboard::tag_to_json(&stem));
-        let mut inner = VanillaTerrain::for_world_with_settings(&options.resources.join("worldgen"), &overrides, pack.assets.registry, &biomes, seed, preset, dim.id(), structures, saved_stem.as_ref()).map_err(|e| {
+        let mut inner = VanillaTerrain::for_world_with_settings(&options.resources.join("worldgen"), &overrides, pack.assets.registry, &biomes, seed, preset, dim.kind().id(), structures, saved_stem.as_ref()).map_err(|e| {
                 if overrides.is_empty() {
                     format!("{e}\nPrepare the worldgen bundle with the launcher, or: horizon-prepare --prepare")
                 } else {

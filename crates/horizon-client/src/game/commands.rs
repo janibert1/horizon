@@ -1053,11 +1053,8 @@ impl Game<'_> {
     fn loaded_dims(&self) -> Vec<Dim> {
         let mut dims = vec![self.dim];
         dims.extend(self.levels.parked_dims());
-        dims.sort_by_key(|d| match d {
-            Dim::Overworld => 0,
-            Dim::Nether => 1,
-            Dim::End => 2,
-        });
+        // vanilla's three first, then the extra levels in the order they were added
+        dims.sort_by_key(|d| d.0);
         dims
     }
     /// `Level.getEntity`: the entity of the level in place with a network

@@ -267,10 +267,11 @@ impl Game<'_> {
     /// The client level as item models read it: worked out once a frame (a
     /// screen of items read the same level, its sky sampled once).
     pub(super) fn item_level(&self) -> LevelState {
-        let dimension = match self.dim {
+        let dimension = match self.dim.kind() {
             Dim::Overworld => "minecraft:overworld",
             Dim::Nether => "minecraft:the_nether",
             Dim::End => "minecraft:the_end",
+            _ => unreachable!("Dim::kind is one of vanilla's levels"),
         };
         let key = (
             self.frames,

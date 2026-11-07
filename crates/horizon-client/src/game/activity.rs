@@ -52,10 +52,11 @@ impl Game<'_> {
         };
         Activity::World {
             play,
-            dimension: match self.dim {
+            dimension: match self.dim.kind() {
                 Dim::Overworld => Dimension::Overworld,
                 Dim::Nether => Dimension::Nether,
                 Dim::End => Dimension::End,
+                _ => unreachable!("Dim::kind returns a vanilla environment"),
             },
             mode: match self.mode {
                 GameMode::Survival => horizon_hooks::GameMode::Survival,

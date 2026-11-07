@@ -370,11 +370,11 @@ impl Game<'_> {
     /// The environment attributes the frame draws: the packs' Polytone layers over the
     /// current dimension's, when a pack has some. Gameplay keeps `dim_environment`.
     pub(super) fn view_environment(&self) -> &Environment {
-        match (&self.pack.environments, self.dim) {
+        match (&self.pack.environments, self.dim.kind()) {
             (Some(e), Dim::Overworld) => &e[0],
             (Some(e), Dim::Nether) => &e[1],
             (Some(e), Dim::End) => &e[2],
-            (None, _) => self.dim_environment(),
+            _ => self.dim_environment(),
         }
     }
 

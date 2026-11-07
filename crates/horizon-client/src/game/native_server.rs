@@ -557,6 +557,35 @@ impl Game<'_> {
         };
         true
     }
+
+    /// Adds an extra level (a Multiverse-style world) and saves it in the world's
+    /// `horizon_levels.json`, so it comes back at the next start: `id` is
+    /// `namespace:path` (lowercase), `generator` the JSON `{"generator": "void"}`,
+    /// `{"generator": "flat", "layers": [{"block": "stone", "height": 3}], "biome":
+    /// "minecraft:plains"}` or `{"generator": "normal", "seed": 42}`, with an optional
+    /// `"environment": "normal" | "nether" | "the_end"` (Bukkit `World.Environment`: that
+    /// dimension type and rules; `normal` terrain is that dimension's). The level opens
+    /// when a player or a ticket enters it (`/execute in <id> run tp ...`); no portal
+    /// leads out of it. Err with the
+    /// reason when the id is taken or not valid. API @API:host_extra_levels@.
+    pub(super) fn native_create_level(&mut self, id: &str, generator: &str) -> Result<(), String> {
+        let v: serde_json::Value = if generator.trim().is_empty() {
+            serde_json::json!({})
+        } else {
+            serde_json::from_str(generator).map_err(|e| format!("generator: {e}"))?
+        };
+        let g = horizon_client::extra_levels::generator_from_json(&v)?;
+        let env = horizon_client::extra_levels::environment_from_json(&v)?;
+        horizon_client::extra_levels::register_with(id, g, env)?;
+        horizon_client::extra_levels::save(&self.world_root).map_err(|e| e.to_string())?;
+        // `/execute in` suggestions
+        self.ui.registries.dimensions = horizon_client::extra_levels::ids();
+        Ok(())
+    }
+    /// Every level's id, vanilla's three first, then the extra levels. API @API:host_extra_levels@.
+    pub(super) fn native_levels(&self) -> Vec<String> {
+        horizon_client::extra_levels::ids()
+    }
     /// Shows `nickname` in place of that player's name in chat (their
     /// messages, `/me`, `/msg`) and in the Tab list; None shows their name
     /// again. Hovering the shown name gives the real one, which stays in the

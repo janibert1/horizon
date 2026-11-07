@@ -1,0 +1,10 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "create_level", "target": "horizon_client::game::native_server::Game<'_>::native_create_level", "mod_api": {}},
+    {"name": "levels", "target": "horizon_client::game::native_server::Game<'_>::native_levels", "mod_api": {}}
+  ],
+  "rust_summary": "extra levels (Multiverse-style worlds) on Host (`create_level`, `levels`).",
+  "doc_summary": "`Host::create_level(id, generator_json)` adds a level beyond vanilla's three (void, superflat or the Overworld's generator with its own seed; the Overworld's dimension type; saved in `<world>/horizon_levels.json`), `Host::levels()` lists every level. Bundles need \"hooks\": @API:host_extra_levels@.",
+  "comments": ["crates/horizon-client/src/game/native_server.rs", "crates/horizon-client/src/extra_levels.rs"]
+}

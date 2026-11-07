@@ -41,10 +41,11 @@ impl Game<'_> {
         horizon_client::mobs::cem_anim::set_frame(horizon_client::mobs::cem_anim::Frame {
             time: self.world.game_time as f64 + alpha,
             day_time: self.world.day_time as f64 + alpha,
-            dimension: match self.dim {
+            dimension: match self.dim.kind() {
                 Dim::Overworld => 0.0,
                 Dim::Nether => -1.0,
                 Dim::End => 1.0,
+                _ => unreachable!("Dim::kind returns a vanilla environment"),
             },
             player: self.player.as_ref().map_or(camera.to_array(), |p| {
                 [p.position.x, p.position.y, p.position.z]

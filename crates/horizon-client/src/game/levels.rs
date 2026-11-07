@@ -240,13 +240,13 @@ impl Game<'_> {
             &self.settings,
             &self.world_root,
             dim,
-            self.level_shapes.get(dim.id()),
+            self.level_shapes.get(dim.kind().id()),
             self.level.seed,
             &self.level.enabled_features,
         )?;
         let mut world = World::new(self.res.facts().air, self.level.seed);
         world.attachments = save.load_attachments();
-        world.shape = self.level_shapes.get(dim.id());
+        world.shape = self.level_shapes.get(dim.kind().id());
         world.fast_lava = self.dimension_type_of(dim).fast_lava;
         let tickets = ChunkTickets::with_saved_portal(save.load_portal_tickets());
         Ok(Parked {
@@ -317,7 +317,7 @@ impl Game<'_> {
             }
             let save = SaveDir::new(
                 horizon_client::save::dimension_dir(&self.world_root, dim.id()),
-                self.level_shapes.get(dim.id()),
+                self.level_shapes.get(dim.kind().id()),
             );
             if !save.load_portal_tickets().is_empty() {
                 self.enter_level(None, dim)?;
@@ -617,10 +617,11 @@ impl Game<'_> {
         for (k, dim) in dims.into_iter().enumerate() {
             // Each level's share of the tick (the first one also reads the network and runs the
             // tick's shared parts): `horizon-report`'s `level_*` spans.
-            let _level_span = horizon_client::spans::guard(match dim {
+            let _level_span = horizon_client::spans::guard(match dim.kind() {
                 Dim::Overworld => "level_overworld",
                 Dim::Nether => "level_the_nether",
                 Dim::End => "level_the_end",
+                _ => unreachable!("Dim::kind is one of vanilla's levels"),
             });
             // The level's own share of the pass, outside its world tick: a slow tick's line names
             // each of them, and `level_tick` holds the world tick itself (#15349).
@@ -818,9 +819,7 @@ impl Game<'_> {
 
     /// The level whose id is exactly `id` (`MinecraftServer.getLevel` of a `ResourceKey`).
     pub(super) fn known_level(&self, id: &str) -> Option<Dim> {
-        [Dim::Overworld, Dim::Nether, Dim::End]
-            .into_iter()
-            .find(|d| d.id() == id)
+        Dim::try_from_id(id)
     }
 
     /// The levels this server tick runs, in `MinecraftServer.levels` order
@@ -831,7 +830,8 @@ impl Game<'_> {
             .lan
             .as_ref()
             .map_or(&[][..], |h| h.hub.guests.as_slice());
-        let mut dims: Vec<Dim> = [Dim::Overworld, Dim::Nether, Dim::End]
+        // vanilla's three, then the extra levels (`horizon_client::extra_levels`)
+        let mut dims: Vec<Dim> = Dim::all()
             .into_iter()
             .filter(|d| {
                 // `/forceload`ed chunks, or a native mod's tickets.
@@ -964,7 +964,7 @@ impl Game<'_> {
     /// (`MinecraftServer.stopServer`'s `level.close()` loop), in vanilla's
     /// order of its levels: the Overworld, the Nether, the End.
     pub(super) fn native_levels_closing(&mut self) {
-        for dim in [Dim::Overworld, Dim::Nether, Dim::End] {
+        for dim in Dim::all() {
             self.native_level_closed(dim);
         }
     }

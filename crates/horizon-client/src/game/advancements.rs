@@ -1411,7 +1411,7 @@ impl Game<'_> {
         }
         // Back in the Overworld from the Nether: measured from where it was entered.
         if let Some(start) = self.adv.marks.nether
-            && self.dim == Dim::Overworld
+            && self.dim.kind() == Dim::Overworld
         {
             self.adv.marks.nether = None;
             self.trigger_distance("minecraft:nether_travel", start);

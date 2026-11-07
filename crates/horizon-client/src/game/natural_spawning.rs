@@ -559,7 +559,7 @@ impl NaturalLevel for GameLevel<'_, '_> {
     }
     fn respawn(&self) -> Option<[i32; 3]> {
         // The world spawn point lives in the overworld.
-        if self.game.dim != Dim::Overworld {
+        if self.game.dim.kind() != Dim::Overworld {
             return None;
         }
         self.game.level.spawn.map(|s| {

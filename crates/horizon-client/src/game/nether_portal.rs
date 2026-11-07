@@ -306,8 +306,10 @@ impl Game<'_> {
         }
     }
     /// `ServerLevel.isAllowedToEnterPortal`.
+    /// Nether and End portals do not lead out of an extra level (`horizon_client::extra_levels`).
     pub(super) fn may_enter(&self, target: Dim) -> bool {
-        target != Dim::Nether || self.ui.rules.bool("allow_entering_nether_using_portals")
+        !self.dim.is_extra()
+            && (target != Dim::Nether || self.ui.rules.bool("allow_entering_nether_using_portals"))
     }
     /// The plan of an entity of `width` by `height` at `at` going through the
     /// portal at `entry` (`getDimensionTransitionFromExit` and the scaled,

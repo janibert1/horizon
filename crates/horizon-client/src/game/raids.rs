@@ -1191,7 +1191,7 @@ impl Game<'_> {
     /// The raid bar a living player at `at` is in (`Raid.getPlayers`): red,
     /// notched in tens. The name is the translate component the client draws.
     pub(super) fn raid_boss_at(&self, at: [f64; 3], alive: bool) -> Option<(i32, Tag, f32)> {
-        if !alive || self.dim != Dim::Overworld {
+        if !alive || self.dim.kind() != Dim::Overworld {
             return None;
         }
         let block = block_of(Vec3::new(at[0], at[1], at[2]));
@@ -1262,7 +1262,7 @@ impl Game<'_> {
     /// the pillagers it accepts are created after the pass, finalized for a
     /// patrol.
     pub(super) fn tick_patrol_spawner(&mut self) {
-        if self.dim != Dim::Overworld {
+        if self.dim.kind() != Dim::Overworld {
             return;
         }
         let attributes = self.gameplay_attributes();
@@ -1323,7 +1323,7 @@ impl Game<'_> {
     /// `VillageSiege.tick`: at midnight one night in ten, 20 zombies spawn
     /// two ticks apart near a village 32 blocks from a player standing in it.
     pub(super) fn tick_village_siege(&mut self) {
-        if self.dim != Dim::Overworld {
+        if self.dim.kind() != Dim::Overworld {
             return;
         }
         let enemies = self.ui.rules.bool("spawn_mobs") && self.ui.rules.bool("spawn_monsters");

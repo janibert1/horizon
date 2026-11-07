@@ -328,6 +328,10 @@ impl Game<'_> {
         target: Dim,
         cause: &str,
     ) -> bool {
+        // No portal leads out of an extra level (a void arena, a lobby): `/execute in` and mods move players.
+        if self.dim.is_extra() {
+            return false;
+        }
         let Some(g) = host.hub.guest(conn) else {
             return false;
         };

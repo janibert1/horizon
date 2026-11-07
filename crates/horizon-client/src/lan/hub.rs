@@ -715,11 +715,18 @@ impl Hub {
             .id("minecraft:chat_type", "minecraft:chat")
             .unwrap_or(0);
         let dimension_type = sync
-            .id("minecraft:dimension_type", &config.dimension)
+            .id(
+                "minecraft:dimension_type",
+                crate::extra_levels::dimension_type(&config.dimension),
+            )
             .unwrap_or(0);
         let clock_ids = (0..sync.dynamic.len("minecraft:world_clock") as i32).collect();
         let mut encoder = encoder;
-        encoder.set_dimension(config.levels.get(&config.dimension));
+        encoder.set_dimension(
+            config
+                .levels
+                .get(crate::extra_levels::dimension_type(&config.dimension)),
+        );
         Self {
             lan,
             config,
@@ -1435,10 +1442,17 @@ impl Hub {
     }
 
     /// The levels of a server, in MinecraftServer.levelKeys order.
+    /// `MinecraftServer.levelKeys()`: vanilla's three and the extra levels (`crate::extra_levels`).
     fn level_keys() -> Vec<String> {
-        ["overworld", "the_end", "the_nether"]
+        let mut keys: Vec<String> = ["overworld", "the_end", "the_nether"]
             .map(|l| format!("minecraft:{l}"))
-            .to_vec()
+            .to_vec();
+        keys.extend(
+            crate::extra_levels::extra_ids()
+                .into_iter()
+                .map(str::to_owned),
+        );
+        keys
     }
 
     /// PlayerList.placeNewPlayer for a guest whose saved state is loaded.
@@ -5022,12 +5036,19 @@ impl Hub {
         (self.last_clock, self.last_rate, self.weather) =
             (entering.last_clock, entering.last_rate, entering.weather);
         self.config.dimension = dimension.to_owned();
+        // An extra level is of the Overworld's dimension type (`crate::extra_levels`).
         self.dimension_type = self
             .sync
-            .id("minecraft:dimension_type", dimension)
+            .id(
+                "minecraft:dimension_type",
+                crate::extra_levels::dimension_type(dimension),
+            )
             .unwrap_or(0);
-        self.encoder
-            .set_dimension(self.config.levels.get(dimension));
+        self.encoder.set_dimension(
+            self.config
+                .levels
+                .get(crate::extra_levels::dimension_type(dimension)),
+        );
     }
 
     /// ServerPlayer.teleport(TeleportTransition) into the level the hub now

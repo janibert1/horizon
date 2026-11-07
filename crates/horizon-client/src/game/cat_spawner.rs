@@ -12,7 +12,7 @@ const TICK_DELAY: i32 = 1200;
 impl Game<'_> {
     /// `CatSpawner.tick` (the overworld's custom spawner).
     pub(super) fn tick_cat_spawner(&mut self) {
-        if self.dim != Dim::Overworld {
+        if self.dim.kind() != Dim::Overworld {
             return;
         }
         self.creatures.cat_tick -= 1;

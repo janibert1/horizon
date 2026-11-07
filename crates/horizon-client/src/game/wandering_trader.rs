@@ -83,7 +83,7 @@ impl Game<'_> {
     }
     /// `WanderingTraderSpawner.tick`.
     pub(super) fn tick_wandering_trader(&mut self) {
-        if self.dim != Dim::Overworld || !self.ui.rules.bool("spawn_wandering_traders") {
+        if self.dim.kind() != Dim::Overworld || !self.ui.rules.bool("spawn_wandering_traders") {
             return;
         }
         self.load_trader_data();

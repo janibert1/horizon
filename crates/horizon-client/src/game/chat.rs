@@ -940,11 +940,8 @@ impl Game<'_> {
         reg.structures = ids.structures.clone();
         reg.biomes = ids.biomes.clone();
         reg.clocks = ids.clocks.clone();
-        reg.dimensions = vec![
-            "minecraft:overworld".into(),
-            "minecraft:the_nether".into(),
-            "minecraft:the_end".into(),
-        ];
+        // vanilla's three and the extra levels (`horizon_client::extra_levels`)
+        reg.dimensions = horizon_client::extra_levels::ids();
         reg.players = vec![PLAYER_NAME.into()];
         // Timelines of the overworld clock and their time markers.
         self.ui.timelines = ids.timelines.iter().cloned().collect();
