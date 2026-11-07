@@ -6222,6 +6222,33 @@ impl Game<'_> {
     ) {
         mod_api::dispatch_prepare_item_craft(self, mod_api::mods(), player, name, pos, result);
     }
+    /// The crafting-grid result after vanilla's recipe match and
+    /// `prepare_item_craft`, with the grid it was matched from (`matrix`: the
+    /// 4 slots of the inventory grid or the 9 of a crafting table, row by
+    /// row; `pos` the table, None for the inventory grid). Every mod hears it
+    /// and may change, replace or clear `result` (Bukkit's
+    /// `PrepareItemCraftEvent#getInventory().setResult` with `getMatrix()`):
+    /// what it leaves is what the player sees and takes. Heard on every grid
+    /// change, so a result can be prepared several times before it is taken.
+    /// Server-side. API @API:item_craft_result@.
+    pub(super) fn native_item_craft_result(
+        &mut self,
+        player: u128,
+        name: &str,
+        pos: Option<[i32; 3]>,
+        matrix: &[Option<ItemStack>],
+        result: &mut Option<ItemStack>,
+    ) {
+        mod_api::dispatch_item_craft_result(
+            self,
+            mod_api::mods(),
+            player,
+            name,
+            pos,
+            matrix,
+            result,
+        );
+    }
     /// A server player selected trade `index` from `villager` in the trading menu. 302.
     pub(super) fn native_trade_select(
         &mut self,

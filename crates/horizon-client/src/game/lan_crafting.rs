@@ -258,6 +258,8 @@ impl Game<'_> {
         let (uuid, name) = (guest.uuid, guest.name.clone());
         let mut result = menu.slot(0).cloned();
         self.native_prepare_item_craft(uuid, &name, None, &mut result);
+        let matrix: Vec<Option<ItemStack>> = (1..5).map(|s| menu.slot(s).cloned()).collect();
+        self.native_item_craft_result(uuid, &name, None, &matrix, &mut result);
         let env = self.menu_env();
         menu.set_slot(&env, 0, result);
         let g = &mut host.hub.guests[gi];
