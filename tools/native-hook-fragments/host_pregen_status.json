@@ -1,0 +1,9 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "pregen_status", "target": "horizon_client::game::commands::pregen::Game<'_>::native_pregen_status", "mod_api": {}}
+  ],
+  "rust_summary": "the running `/pregen` task on Host (`pregen_status`).",
+  "doc_summary": "`Host::pregen_status()` is the running `/pregen` task: `(dimension, done, total, paused, seconds_run)`, `None` when none runs (a Chunky-compatible console command, a status page). Bundles need \"hooks\": @API:host_pregen_status@.",
+  "comments": ["crates/horizon-client/src/game/commands/pregen.rs"]
+}
