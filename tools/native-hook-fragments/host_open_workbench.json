@@ -1,0 +1,9 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "open_workbench", "target": "horizon_client::game::native_menus::Game<'_>::native_open_workbench", "mod_api": {}}
+  ],
+  "rust_summary": "opening a portable crafting table on Host (`open_workbench`).",
+  "doc_summary": "`Host::open_workbench(uuid)` opens a crafting table menu without a table block (Bukkit `openWorkbench(null, true)`, Essentials `/workbench`); it crafts as a table does and gives its grid back when closed. Bundles need \"hooks\": @API:host_open_workbench@.",
+  "comments": ["crates/horizon-client/src/game/native_menus.rs"]
+}

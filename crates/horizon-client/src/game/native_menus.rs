@@ -144,6 +144,27 @@ impl Game<'_> {
         self.lan = Some(host);
         window
     }
+    /// Opens a crafting table menu for the player without a table block (Bukkit
+    /// `HumanEntity.openWorkbench(null, true)`, Essentials `/workbench`): a 3x3 grid that crafts
+    /// as a table does, its grid given back when it closes. False when the player is not on or a
+    /// `container_opened` hook cancelled it. Call from a tick or `run_later`, not inside the player's
+    /// own turn. API @API:host_open_workbench@.
+    pub(super) fn native_open_workbench(&mut self, uuid: u128) -> bool {
+        let Some(conn) = self.native_conn(uuid) else {
+            return false;
+        };
+        let Some(mut host) = self.lan.take() else {
+            return false;
+        };
+        self.lan_open_crafting(&mut host, conn, super::lan_crafting::PORTABLE_TABLE);
+        let open = host
+            .play
+            .get(&conn)
+            .and_then(|p| p.crafting.table.as_ref())
+            .is_some_and(|t| t.3 == super::lan_crafting::PORTABLE_TABLE);
+        self.lan = Some(host);
+        open
+    }
     /// Replaces what the player's open native menu shows; sent with the
     /// tick's container sync.
     pub(super) fn native_set_menu_items(&mut self, uuid: u128, items: Vec<Option<ItemStack>>) {
