@@ -708,6 +708,16 @@ impl Game<'_> {
             self.native_lifecycle.cancel_server_tick();
             return Err(error);
         }
+        // The native mods' tick hooks act on the level in place (`Host::summon` and the other level
+        // helpers): the Overworld when it ticked (vanilla's `server.overworld()`), not whichever
+        // level ticked last (a force-loaded Nether, End or extra level).
+        if self.dim != Dim::Overworld
+            && order.contains(&Dim::Overworld)
+            && let Err(error) = self.enter_level(None, Dim::Overworld)
+        {
+            self.native_lifecycle.cancel_server_tick();
+            return Err(error);
+        }
         // `ServerTickEnd`: an errored tick or an idle-close failure (at
         // the `?` above) never reaches this site.
         {
