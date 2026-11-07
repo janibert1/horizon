@@ -6,14 +6,37 @@ use horizon_client::{
     lan::waypoints::{self, HIDING_HEADS, Icon, PLAYER_RANGE},
 };
 
-/// `waypoint_transmit_range`: hidden by crouching, invisibility or a head worn.
-fn transmit_range(crouching: bool, invisible: bool, head: Option<&ItemStack>) -> f64 {
+/// `waypoint_transmit_range`: hidden by crouching, invisibility or a head worn,
+/// else the player's attribute value (`/attribute ... waypoint_transmit_range
+/// base set 300` limits how far the locator bar shows them), `PLAYER_RANGE`
+/// when the body has no such attribute.
+fn transmit_range(
+    crouching: bool,
+    invisible: bool,
+    head: Option<&ItemStack>,
+    attribute: Option<f64>,
+) -> f64 {
     let hiding_head = head.is_some_and(|s| HIDING_HEADS.contains(&&*s.item));
     if crouching || invisible || hiding_head {
         0.0
     } else {
-        PLAYER_RANGE
+        attribute.map_or(PLAYER_RANGE, |v| v.max(0.0))
     }
+}
+
+/// A player's computed `waypoint_transmit_range` and `waypoint_receive_range`
+/// (`LivingEntity.getAttributeValue`), `None` each without a body or the
+/// attribute.
+fn waypoint_attributes(
+    motion: Option<&mut horizon_client::motion::PlayerMotion>,
+) -> [Option<f64>; 2] {
+    let Some(m) = motion else {
+        return [None, None];
+    };
+    [
+        m.attribute("minecraft:waypoint_transmit_range").ok(),
+        m.attribute("minecraft:waypoint_receive_range").ok(),
+    ]
 }
 
 impl Game<'_> {
@@ -29,6 +52,20 @@ impl Game<'_> {
     /// (`ServerLevel.removePlayerImmediately`: untracked for everyone there)
     /// and joins the new one's (`addDuringTeleport`).
     pub(super) fn lan_update_waypoints(&mut self, host: &mut LanHost) {
+        // The range attributes need the body mutably (computed values are cached).
+        let ranges: Vec<(u128, [Option<f64>; 2])> = host
+            .hub
+            .guests
+            .iter_mut()
+            .filter(|g| g.placed)
+            .map(|g| (g.uuid, waypoint_attributes(g.motion.as_deref_mut())))
+            .collect();
+        let range_of = |uuid: u128| {
+            ranges
+                .iter()
+                .find(|(u, _)| *u == uuid)
+                .map_or([None, None], |(_, r)| *r)
+        };
         let mut players: Vec<(&str, waypoints::Player)> = Vec::new();
         let mut respawned = Vec::new();
         for g in host.hub.guests.iter().filter(|g| g.placed) {
@@ -40,6 +77,7 @@ impl Game<'_> {
             }
             // Player.updatePlayerPose: the shift key crouches unless flying.
             let crouching = g.sneaking && !g.flying && !g.fall_flying && !g.sleeping;
+            let [transmit, receive] = range_of(g.uuid);
             players.push((
                 &g.dimension,
                 waypoints::Player {
@@ -51,8 +89,9 @@ impl Game<'_> {
                         crouching,
                         g.effects.get("invisibility").is_some(),
                         g.armor[0].as_ref(),
+                        transmit,
                     ),
-                    receive_range: PLAYER_RANGE,
+                    receive_range: receive.map_or(PLAYER_RANGE, |v| v.max(0.0)),
                     first_tick: g.ticks == 0,
                     view_distance: g.view_distance,
                     team: self.waypoint_team(&g.name),
