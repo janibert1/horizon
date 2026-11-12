@@ -51,6 +51,10 @@ members = [
     "crates/horizon-release-sign",
     "crates/horizon-mod-deps",
     "xtask",
+    "hplug/sdk",
+    "hplug/runner",
+    "hplug/testclient",
+    "hplug/plugins/*",
 ]
 resolver = "2"
 
