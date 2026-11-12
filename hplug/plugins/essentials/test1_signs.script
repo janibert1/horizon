@@ -1,0 +1,40 @@
+# essentials signs (fixture enables [Warp] and [Kit]); runs between test.script and test2.script, Tester is still op.
+# Needs hp-client ops expect-sign-editor / sign (placing a sign opens the editor; the client then sends SignUpdate).
+wait 8
+cmd tp @s 0.5 100 0.5
+wait 2
+cmd setwarp signdest
+expect Warp signdest set.
+cmd setblock 6 99 0 minecraft:stone
+cmd setblock 8 99 0 minecraft:stone
+cmd tp @s 7.5 100 3.5
+wait 2
+cmd clear @s
+cmd give @s minecraft:oak_sign 2
+wait 1
+# control: a plain sign is not registered, a right click does nothing
+use 6 99 0
+expect-sign-editor
+sign 6 100 0 hello|world|x|y
+wait 1
+use 6 100 0
+wait 2
+expect-pos 7.5 100 3.5 1
+# control: a valid type that is not in enabled_signs ([Heal]) is also ignored
+use 8 99 0
+expect-sign-editor
+sign 8 100 0 [Heal]|||
+wait 1
+use 8 100 0
+wait 2
+expect-pos 7.5 100 3.5 1
+# the real thing: [Warp] signdest registers the sign (line 1 gets recoloured), right click warps
+cmd give @s minecraft:oak_sign 1
+wait 1
+cmd setblock 7 99 0 minecraft:stone
+use 7 99 0
+expect-sign-editor
+sign 7 100 0 [Warp]|signdest||
+wait 1
+use 7 100 0
+expect-pos 0.5 100 0.5 1

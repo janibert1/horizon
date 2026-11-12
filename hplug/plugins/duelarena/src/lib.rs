@@ -7,6 +7,8 @@
 //!   the engine's extra levels (`Host::create_level`, engine patch) and kept in `<world>/horizon_levels.json`; the arena
 //!   chunks are force-loaded so the arenas can be built and reset at any time. `dimension` in
 //!   config/hplug/duelarena.json may still name a vanilla level (the old setup: `minecraft:the_end`, X=10000).
+//!   12/11: on the Paper world copy the extra level already exists as `minecraft:duel_arena`; set `"dimension":
+//!   "minecraft:duel_arena"` to reuse that folder (proof: scripts/duel_namespace_proof.py); the default creates a fresh one.
 //!   Teleports are console `execute in <dim> run tp`.
 //! - Arena reset is lightweight and instantaneous, avoiding the known Paper bug where pasting 2.9M block
 //!   schematics froze the server and caused Watchdog crashes.

@@ -6,6 +6,7 @@
 //!   | chat TEXT | expect TEXT (substring of a chat line that arrives within 10 s) | break X Y Z (start-destroy)
 //!   | chat TEXT (unsigned chat message) | expect-none TEXT (no chat line with TEXT within 3 s)
 //!   | interact-last (right click the last added entity) | trade N (in the open merchant window: select offer N, shift-click the result)
+//!   | expect-sign-editor (the server opened a sign editor within 10 s) | sign X Y Z l1|l2|l3|l4 (write the front of the sign being edited)
 //!   | pos (print position) | expect-pos X Y Z TOL (position within TOL blocks of target within 10 s)
 //! `--protocol 26.2`: join as a client of that older release (see `join`).
 //! `--expect-refused TEXT`: the login must be refused with a reason containing TEXT (no script runs).
@@ -164,6 +165,8 @@ struct State {
     /// open container window id (0 = none) and its last state id (for `trade`)
     container: i32,
     state_id: i32,
+    /// position of the last sign whose editor the server opened (for `expect-sign-editor` / `sign`)
+    sign_editor: Option<[i32; 3]>,
 }
 
 /// Pump packets for up to `d`, answering the server; returns early when `stop` says so.
@@ -298,6 +301,14 @@ fn pump(
                     st.chat.push(t);
                 }
             }
+            cb::OPEN_SIGN_EDITOR => {
+                if let Ok(play::Clientbound::OpenSignEditor(p)) =
+                    play::Clientbound::decode(id, &body)
+                {
+                    st.sign_editor = Some(p.pos);
+                    println!("SIGN EDITOR: {:?} front {}", p.pos, p.front);
+                }
+            }
             cb::OPEN_SCREEN => {
                 if let Ok(play::Clientbound::OpenScreen(p)) = play::Clientbound::decode(id, &body) {
                     st.container = p.container;
@@ -421,6 +432,7 @@ fn main() {
                 entities: vec![],
                 container: 0,
                 state_id: 0,
+                sign_editor: None,
             };
             let r = pump(&mut c, &mut st, Duration::from_secs(8), &|_| false);
             let ok = matches!(&r, Err(m) if m.contains(t.as_str()));
@@ -457,6 +469,7 @@ fn main() {
         entities: vec![],
         container: 0,
         state_id: 0,
+        sign_editor: None,
     };
     if let Some(seconds) = arg("--plugin-stdio") {
         let result = plugin_bridge(&mut c, &mut st, seconds.parse().unwrap_or(120.0));
@@ -623,6 +636,43 @@ fn main() {
                     println!("FAIL expect {rest:?}");
                     failed += 1;
                     r
+                }
+            }
+            "expect-sign-editor" => {
+                // the server opened a sign editor for us (we just placed a sign)
+                st.sign_editor = None;
+                let r = pump(&mut c, &mut st, Duration::from_secs(10), &|s: &State| {
+                    s.sign_editor.is_some()
+                });
+                if st.sign_editor.is_some() {
+                    println!("PASS expect-sign-editor");
+                    Ok(())
+                } else {
+                    println!("FAIL expect-sign-editor");
+                    failed += 1;
+                    r
+                }
+            }
+            "sign" => {
+                // sign X Y Z line1|line2|line3|line4 : write the front side of a sign we are editing
+                let mut it = rest.splitn(4, ' ');
+                let v: Vec<i32> = (&mut it).take(3).filter_map(|x| x.parse().ok()).collect();
+                let text = it.next().unwrap_or("");
+                if v.len() != 3 {
+                    Err("sign X Y Z l1|l2|l3|l4".into())
+                } else {
+                    let mut l = text.split('|').map(str::to_owned);
+                    let lines = [(); 4].map(|_| l.next().unwrap_or_default());
+                    println!("> sign {v:?} {lines:?}");
+                    c.send(
+                        &play::Serverbound::SignUpdate(play::SignUpdate {
+                            pos: [v[0], v[1], v[2]],
+                            lines,
+                            front: true,
+                        })
+                        .encode(),
+                    )
+                    .map_err(e)
                 }
             }
             "expect-pos" => {

@@ -18,7 +18,8 @@ pub fn plugin() -> Plugin {
                 Some(a @ ("lock" | "unlock")) => {
                     let lock = a == "lock";
                     ctx.set("locked", json::json!(lock))?;
-                    let who = ctx.player().name.clone();
+                    // RCON/console (Ori re-sends `endlock lock|unlock` every tick) has no acting player
+                    let who = ctx.try_player().map(|p| p.name.clone()).unwrap_or_else(|| "console".to_owned());
                     println!("[endlock] End {a}ed by {who}");
                     ctx.reply(format!("EndLock: End portal is now {}.", if lock { "LOCKED" } else { "OPEN" }));
                 }

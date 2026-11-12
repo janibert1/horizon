@@ -31,6 +31,8 @@ cmd endlock status         # sends /endlock status as the op player Tester
 expect currently LOCKED    # a chat line containing this must arrive within 10 s
 break 96 144 -32           # start-destroy a block (server runs creative in tests)
 expect-pos 0.5 100 0.5 3   # position within 3 blocks of x y z within 10 s
+expect-sign-editor          # the server opened a sign editor (after `use X Y Z` placed a sign, 10 s)
+sign 6 100 0 [Warp]|dest||  # write the front of the sign being edited (SignUpdate); lines split on |
 wait 2                     # keep the connection alive for 2 s
 ```
 `hplug/hp test myplugin` builds, starts a throw-away server on port 25571, runs the script, prints `[PASS]/[FAIL]` and the server log path. Exit code 1 on failure. A first full build is ~10 min on an 8-thread Intel iMac; later builds that only touch plugins take seconds.
