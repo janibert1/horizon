@@ -3,7 +3,7 @@
 //! linked to physical supply and return chests, with barter pricing, chest protection,
 //! full trade simulation with rollback, and server chest GUI.
 #![allow(unused_imports, unused_variables, dead_code)]
-use hplug::{json, Action, Ctx, Damage, Direction, ItemStack, Message, Plugin};
+use hplug::{Action, Ctx, Damage, Direction, ItemStack, Message, Plugin, json};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -47,6 +47,25 @@ impl LinkKind {
 pub struct StoredItem {
     pub item: String,
     pub count: u32,
+    /// Full saved ItemStack when it has components. Never flatten this to a material.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub snbt: Option<String>,
+    /// Original physical inventory slot (migration preserves gaps and double-chest size).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slot: Option<usize>,
+}
+
+impl StoredItem {
+    fn stack(&self) -> Option<ItemStack> {
+        match self.snbt.as_deref() {
+            Some(text) => hplug::item_from_snbt(text),
+            None => Some(ItemStack::new(&self.item, self.count)),
+        }
+    }
+}
+
+fn default_chest_size() -> usize {
+    MAX_CHEST_SLOTS
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -55,6 +74,10 @@ pub struct StoredChest {
     pub kind: LinkKind,
     #[serde(default)]
     pub contents: Vec<StoredItem>,
+    #[serde(default = "default_chest_size")]
+    pub size: usize,
+    #[serde(default)]
+    pub slot_index: usize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -68,6 +91,8 @@ pub struct StoredListing {
 pub struct MerchantProfile {
     pub owner_uuid: String,
     pub owner_name: String,
+    #[serde(default)]
+    pub merchant_uuid: Option<String>,
     pub merchant_pos: Option<StoredPos>,
     #[serde(default)]
     pub supply_chests: Vec<StoredChest>,
@@ -84,8 +109,14 @@ pub struct State {
 
 #[derive(Clone, Debug)]
 pub enum MenuKind {
-    Shop { owner_uuid: String, listing_keys: Vec<String> },
-    Manage { owner_uuid: String, listing_keys: Vec<String> },
+    Shop {
+        owner_uuid: String,
+        listing_keys: Vec<String>,
+    },
+    Manage {
+        owner_uuid: String,
+        listing_keys: Vec<String>,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -100,13 +131,17 @@ static OPEN_MENUS: Mutex<Option<HashMap<u128, OpenSession>>> = Mutex::new(None);
 
 fn pending_links() -> std::sync::MutexGuard<'static, Option<HashMap<u128, LinkKind>>> {
     let mut g = PENDING_LINKS.lock().unwrap_or_else(|e| e.into_inner());
-    if g.is_none() { *g = Some(HashMap::new()); }
+    if g.is_none() {
+        *g = Some(HashMap::new());
+    }
     g
 }
 
 fn open_menus() -> std::sync::MutexGuard<'static, Option<HashMap<u128, OpenSession>>> {
     let mut g = OPEN_MENUS.lock().unwrap_or_else(|e| e.into_inner());
-    if g.is_none() { *g = Some(HashMap::new()); }
+    if g.is_none() {
+        *g = Some(HashMap::new());
+    }
     g
 }
 
@@ -117,13 +152,21 @@ fn uuid_key(uuid: u128) -> String {
 fn with_state<R>(ctx: &Ctx, f: impl FnOnce(&mut State) -> R) -> R {
     let mut g = STATE.lock().unwrap_or_else(|e| e.into_inner());
     if g.is_none() {
-        *g = Some(ctx.get("state").and_then(|v| json::from_value(v).ok()).unwrap_or_default());
+        *g = Some(
+            ctx.get("state")
+                .and_then(|v| json::from_value(v).ok())
+                .unwrap_or_default(),
+        );
     }
     f(g.as_mut().unwrap())
 }
 
 fn save_state(ctx: &mut Ctx) {
-    let val = STATE.lock().unwrap_or_else(|e| e.into_inner()).as_ref().map(|s| json::to_value(s).unwrap_or_default());
+    let val = STATE
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .as_ref()
+        .map(|s| json::to_value(s).unwrap_or_default());
     if let Some(v) = val {
         let _ = ctx.set("state", v);
     }
@@ -131,29 +174,37 @@ fn save_state(ctx: &mut Ctx) {
 
 fn get_profile<'a>(state: &'a mut State, uuid: u128, name: &str) -> &'a mut MerchantProfile {
     let k = uuid_key(uuid);
-    state.profiles.entry(k.clone()).or_insert_with(|| MerchantProfile {
-        owner_uuid: k,
-        owner_name: name.to_string(),
-        merchant_pos: None,
-        supply_chests: vec![],
-        return_chest: None,
-        listings: HashMap::new(),
-    })
+    state
+        .profiles
+        .entry(k.clone())
+        .or_insert_with(|| MerchantProfile {
+            owner_uuid: k,
+            owner_name: name.to_string(),
+            merchant_uuid: None,
+            merchant_pos: None,
+            supply_chests: vec![],
+            return_chest: None,
+            listings: HashMap::new(),
+        })
 }
 
-fn find_profile_by_name_or_uuid<'a>(state: &'a mut State, identifier: &str) -> Option<&'a mut MerchantProfile> {
+fn find_profile_by_name_or_uuid<'a>(
+    state: &'a mut State,
+    identifier: &str,
+) -> Option<&'a mut MerchantProfile> {
     let lower = identifier.to_lowercase();
     let clean_uuid = lower.replace('-', "");
-    state.profiles.values_mut().find(|p| {
-        p.owner_uuid == clean_uuid || p.owner_name.eq_ignore_ascii_case(&lower)
-    })
+    state
+        .profiles
+        .values_mut()
+        .find(|p| p.owner_uuid == clean_uuid || p.owner_name.eq_ignore_ascii_case(&lower))
 }
 
 fn count_stock(profile: &MerchantProfile, item_id: &str) -> u32 {
     let mut total = 0;
     for chest in &profile.supply_chests {
         for stack in &chest.contents {
-            if stack.item == item_id {
+            if stack.snbt.is_none() && stack.item == item_id {
                 total += stack.count;
             }
         }
@@ -165,7 +216,7 @@ fn can_return_chest_fit(chest: &StoredChest, item_id: &str, count: u32) -> bool 
     let mut remaining = count;
     // Try to stack with existing stacks of the same item
     for stack in &chest.contents {
-        if stack.item == item_id && stack.count < MAX_STACK_SIZE {
+        if stack.snbt.is_none() && stack.item == item_id && stack.count < MAX_STACK_SIZE {
             let room = MAX_STACK_SIZE - stack.count;
             let moved = room.min(remaining);
             remaining -= moved;
@@ -175,7 +226,7 @@ fn can_return_chest_fit(chest: &StoredChest, item_id: &str, count: u32) -> bool 
         }
     }
     // Check remaining empty slots
-    let empty_slots = MAX_CHEST_SLOTS.saturating_sub(chest.contents.len());
+    let empty_slots = chest.size.saturating_sub(chest.contents.len());
     let needed_slots = remaining.div_ceil(MAX_STACK_SIZE) as usize;
     needed_slots <= empty_slots
 }
@@ -183,7 +234,7 @@ fn can_return_chest_fit(chest: &StoredChest, item_id: &str, count: u32) -> bool 
 fn add_to_chest(chest: &mut StoredChest, item_id: &str, count: u32) {
     let mut remaining = count;
     for stack in &mut chest.contents {
-        if stack.item == item_id && stack.count < MAX_STACK_SIZE {
+        if stack.snbt.is_none() && stack.item == item_id && stack.count < MAX_STACK_SIZE {
             let room = MAX_STACK_SIZE - stack.count;
             let moved = room.min(remaining);
             stack.count += moved;
@@ -195,7 +246,12 @@ fn add_to_chest(chest: &mut StoredChest, item_id: &str, count: u32) {
     }
     while remaining > 0 {
         let chunk = remaining.min(MAX_STACK_SIZE);
-        chest.contents.push(StoredItem { item: item_id.to_string(), count: chunk });
+        chest.contents.push(StoredItem {
+            item: item_id.to_string(),
+            count: chunk,
+            snbt: None,
+            slot: None,
+        });
         remaining -= chunk;
     }
 }
@@ -204,7 +260,7 @@ fn remove_from_supply_chests(profile: &mut MerchantProfile, item_id: &str, count
     let mut remaining = count;
     for chest in &mut profile.supply_chests {
         for stack in &mut chest.contents {
-            if stack.item == item_id {
+            if stack.snbt.is_none() && stack.item == item_id {
                 let moved = stack.count.min(remaining);
                 stack.count -= moved;
                 remaining -= moved;
@@ -221,6 +277,24 @@ fn remove_from_supply_chests(profile: &mut MerchantProfile, item_id: &str, count
     count - remaining
 }
 
+/// The existing Host count/take/give path accepts plain material ids only.
+/// Keep component imports readable/persistable, but block trades before any inventory mutation.
+fn ensure_plain_trade(profile: &MerchantProfile) -> Result<(), String> {
+    let component_listing = profile
+        .listings
+        .values()
+        .any(|l| l.product.snbt.is_some() || l.cost.as_ref().is_some_and(|c| c.snbt.is_some()));
+    let component_stock = profile
+        .supply_chests
+        .iter()
+        .chain(profile.return_chest.iter())
+        .any(|c| c.contents.iter().any(|i| i.snbt.is_some()));
+    if component_listing || component_stock {
+        return Err("This migrated shop contains component items; trading is disabled until lossless inventory exchange is enabled.".into());
+    }
+    Ok(())
+}
+
 /// Core trade logic with complete simulation and rollback.
 fn perform_purchase(
     ctx: &mut Ctx,
@@ -235,17 +309,31 @@ fn perform_purchase(
 
     // Step 1: Pre-simulation checks on merchant state
     let (product_item, product_count, cost_item, cost_count, return_pos) = with_state(ctx, |s| {
-        let prof = s.profiles.get_mut(owner_uuid)
+        let prof = s
+            .profiles
+            .get_mut(owner_uuid)
             .ok_or_else(|| "Merchant profile not found.".to_string())?;
 
-        let return_chest = prof.return_chest.as_ref()
+        ensure_plain_trade(prof)?;
+
+        let return_chest = prof
+            .return_chest
+            .as_ref()
             .ok_or_else(|| "This merchant has no return chest configured.".to_string())?;
 
-        let listing = prof.listings.get(item_or_key)
-            .or_else(|| prof.listings.values().find(|l| l.product.item == item_or_key))
+        let listing = prof
+            .listings
+            .get(item_or_key)
+            .or_else(|| {
+                prof.listings
+                    .values()
+                    .find(|l| l.product.item == item_or_key)
+            })
             .ok_or_else(|| format!("No listing found for '{item_or_key}'."))?;
 
-        let cost = listing.cost.as_ref()
+        let cost = listing
+            .cost
+            .as_ref()
             .ok_or_else(|| "This listing has no barter price set.".to_string())?;
 
         let total_product = (listing.product.count as u64) * (quantity as u64);
@@ -259,7 +347,9 @@ fn perform_purchase(
 
         let available = count_stock(prof, &listing.product.item);
         if available < total_product {
-            return Err(format!("Insufficient stock for bulk purchase ({available}/{total_product} available)."));
+            return Err(format!(
+                "Insufficient stock for bulk purchase ({available}/{total_product} available)."
+            ));
         }
 
         if !can_return_chest_fit(return_chest, &cost.item, total_cost) {
@@ -318,9 +408,15 @@ fn perform_purchase(
     save_state(ctx);
 
     // Also attempt inserting into physical return chest in world if block exists
-    ctx.host.insert_item([return_pos.x, return_pos.y, return_pos.z], Direction::Up, ItemStack::new(&cost_item, cost_count));
+    ctx.host.insert_item(
+        [return_pos.x, return_pos.y, return_pos.z],
+        Direction::Up,
+        ItemStack::new(&cost_item, cost_count),
+    );
 
-    Ok(format!("Purchased {product_count}x {product_item} for {cost_count}x {cost_item}."))
+    Ok(format!(
+        "Purchased {product_count}x {product_item} for {cost_count}x {cost_item}."
+    ))
 }
 
 fn open_shop_gui(ctx: &mut Ctx, customer_uuid: u128, owner_uuid: &str) -> Option<i32> {
@@ -336,7 +432,7 @@ fn open_shop_gui(ctx: &mut Ctx, customer_uuid: u128, owner_uuid: &str) -> Option
         for listing in sorted_listings {
             if listing.cost.is_some() {
                 keys.push(listing.item_key.clone());
-                display_items.push(Some(ItemStack::new(&listing.product.item, listing.product.count.max(1))));
+                display_items.push(listing.product.stack());
             }
         }
         while display_items.len() < 54 {
@@ -345,12 +441,20 @@ fn open_shop_gui(ctx: &mut Ctx, customer_uuid: u128, owner_uuid: &str) -> Option
         Some((title, display_items, keys))
     })?;
 
-    let win_opt = ctx.host.open_menu(customer_uuid, 6, Message::literal(&title_text), items);
+    let win_opt = ctx
+        .host
+        .open_menu(customer_uuid, 6, Message::literal(&title_text), items);
     if let Some(w) = win_opt {
-        open_menus().as_mut().unwrap().insert(customer_uuid, OpenSession {
-            window_id: w,
-            kind: MenuKind::Shop { owner_uuid: owner_uuid.to_string(), listing_keys: keys },
-        });
+        open_menus().as_mut().unwrap().insert(
+            customer_uuid,
+            OpenSession {
+                window_id: w,
+                kind: MenuKind::Shop {
+                    owner_uuid: owner_uuid.to_string(),
+                    listing_keys: keys,
+                },
+            },
+        );
     }
     win_opt
 }
@@ -360,7 +464,9 @@ fn open_manage_gui(ctx: &mut Ctx, owner_uuid: u128) -> Option<i32> {
         let k = uuid_key(owner_uuid);
         let prof = s.profiles.get(&k)?;
         let mut display_items: Vec<Option<ItemStack>> = Vec::with_capacity(54);
-        for _ in 0..54 { display_items.push(None); }
+        for _ in 0..54 {
+            display_items.push(None);
+        }
 
         // Slot 10: Supply chest 1
         if !prof.supply_chests.is_empty() {
@@ -384,33 +490,56 @@ fn open_manage_gui(ctx: &mut Ctx, owner_uuid: u128) -> Option<i32> {
         let mut keys = Vec::new();
         for (i, listing) in sorted_listings.into_iter().enumerate().take(27) {
             keys.push(listing.item_key.clone());
-            display_items[27 + i] = Some(ItemStack::new(&listing.product.item, listing.product.count.max(1)));
+            display_items[27 + i] = listing.product.stack();
         }
 
         Some((display_items, keys))
     })?;
 
-    let win_opt = ctx.host.open_menu(owner_uuid, 6, Message::literal("MerchantLink Manage"), items);
+    let win_opt = ctx.host.open_menu(
+        owner_uuid,
+        6,
+        Message::literal("MerchantLink Manage"),
+        items,
+    );
     if let Some(w) = win_opt {
-        open_menus().as_mut().unwrap().insert(owner_uuid, OpenSession {
-            window_id: w,
-            kind: MenuKind::Manage { owner_uuid: uuid_key(owner_uuid), listing_keys: keys },
-        });
+        open_menus().as_mut().unwrap().insert(
+            owner_uuid,
+            OpenSession {
+                window_id: w,
+                kind: MenuKind::Manage {
+                    owner_uuid: uuid_key(owner_uuid),
+                    listing_keys: keys,
+                },
+            },
+        );
     }
     win_opt
 }
 
-fn handle_menu_click_event(ctx: &mut Ctx, clicker_uuid: u128, window: i32, slot: i32, button: i32, mode: i32) {
+fn handle_menu_click_event(
+    ctx: &mut Ctx,
+    clicker_uuid: u128,
+    window: i32,
+    slot: i32,
+    button: i32,
+    mode: i32,
+) {
     let session = {
         let menus = open_menus();
         menus.as_ref().unwrap().get(&clicker_uuid).cloned()
     };
 
     let Some(session) = session else { return };
-    if session.window_id != window { return; }
+    if session.window_id != window {
+        return;
+    }
 
     match session.kind {
-        MenuKind::Shop { owner_uuid, listing_keys } => {
+        MenuKind::Shop {
+            owner_uuid,
+            listing_keys,
+        } => {
             if slot < 0 || (slot as usize) >= listing_keys.len() {
                 return;
             }
@@ -424,8 +553,12 @@ fn handle_menu_click_event(ctx: &mut Ctx, clicker_uuid: u128, window: i32, slot:
             };
 
             match perform_purchase(ctx, clicker_uuid, &owner_uuid, key, quantity) {
-                Ok(msg) => { ctx.tell(clicker_uuid, format!("{PREFIX}{msg}")); }
-                Err(err) => { ctx.tell(clicker_uuid, format!("{PREFIX}§c{err}")); }
+                Ok(msg) => {
+                    ctx.tell(clicker_uuid, format!("{PREFIX}{msg}"));
+                }
+                Err(err) => {
+                    ctx.tell(clicker_uuid, format!("{PREFIX}§c{err}"));
+                }
             };
 
             // Refresh menu display after purchase
@@ -434,26 +567,32 @@ fn handle_menu_click_event(ctx: &mut Ctx, clicker_uuid: u128, window: i32, slot:
                 let mut display_items: Vec<Option<ItemStack>> = Vec::with_capacity(54);
                 for key in &listing_keys {
                     if let Some(l) = prof.listings.get(key) {
-                        display_items.push(Some(ItemStack::new(&l.product.item, l.product.count.max(1))));
+                        display_items.push(l.product.stack());
                     } else {
                         display_items.push(None);
                     }
                 }
-                while display_items.len() < 54 { display_items.push(None); }
+                while display_items.len() < 54 {
+                    display_items.push(None);
+                }
                 Some(display_items)
             });
             if let Some(items) = updated_items {
                 ctx.host.set_menu_items(clicker_uuid, items);
             }
         }
-        MenuKind::Manage { owner_uuid, listing_keys } => {
+        MenuKind::Manage {
+            owner_uuid,
+            listing_keys,
+        } => {
             if slot == 10 {
                 // Unlink supply chest 1
                 with_state(ctx, |s| {
                     if let Some(p) = s.profiles.get_mut(&owner_uuid)
-                        && !p.supply_chests.is_empty() {
-                            p.supply_chests.remove(0);
-                        }
+                        && !p.supply_chests.is_empty()
+                    {
+                        p.supply_chests.remove(0);
+                    }
                 });
                 save_state(ctx);
                 ctx.tell(clicker_uuid, format!("{PREFIX}Supply chest 1 unlinked."));
@@ -462,9 +601,10 @@ fn handle_menu_click_event(ctx: &mut Ctx, clicker_uuid: u128, window: i32, slot:
                 // Unlink supply chest 2
                 with_state(ctx, |s| {
                     if let Some(p) = s.profiles.get_mut(&owner_uuid)
-                        && p.supply_chests.len() > 1 {
-                            p.supply_chests.remove(1);
-                        }
+                        && p.supply_chests.len() > 1
+                    {
+                        p.supply_chests.remove(1);
+                    }
                 });
                 save_state(ctx);
                 ctx.tell(clicker_uuid, format!("{PREFIX}Supply chest 2 unlinked."));
@@ -487,7 +627,9 @@ fn handle_menu_click_event(ctx: &mut Ctx, clicker_uuid: u128, window: i32, slot:
                     }
                 });
                 save_state(ctx);
-                ctx.console(format!("execute in minecraft:overworld run kill @e[type=villager,tag=ml_{owner_uuid}]"));
+                ctx.console(format!(
+                    "execute in minecraft:overworld run kill @e[type=villager,tag=ml_{owner_uuid}]"
+                ));
                 ctx.tell(clicker_uuid, format!("{PREFIX}Merchant removed."));
                 ctx.host.close_menu(clicker_uuid);
             } else if slot >= 27 {
@@ -624,8 +766,8 @@ pub fn plugin() -> Plugin {
                         let prof = get_profile(s, player.uuid, &player.name);
                         prof.listings.insert(product.clone(), StoredListing {
                             item_key: product.clone(),
-                            product: StoredItem { item: product.clone(), count: product_count },
-                            cost: Some(StoredItem { item: cost.clone(), count: cost_count }),
+                            product: StoredItem { item: product.clone(), count: product_count, snbt: None, slot: None },
+                            cost: Some(StoredItem { item: cost.clone(), count: cost_count, snbt: None, slot: None }),
                         });
                     });
                     save_state(ctx);
@@ -649,7 +791,7 @@ pub fn plugin() -> Plugin {
                                 // Automatically absorb listing
                                 prof.listings.entry(item.clone()).or_insert_with(|| StoredListing {
                                     item_key: item.clone(),
-                                    product: StoredItem { item: item.clone(), count: 1 },
+                                    product: StoredItem { item: item.clone(), count: 1, snbt: None, slot: None },
                                     cost: None,
                                 });
                                 Ok(())
@@ -742,7 +884,7 @@ pub fn plugin() -> Plugin {
                                 if let Some(ret) = &mut prof.return_chest {
                                     ret.contents.clear();
                                     for _ in 0..27 {
-                                        ret.contents.push(StoredItem { item: "minecraft:cobblestone".into(), count: 64 });
+                                        ret.contents.push(StoredItem { item: "minecraft:cobblestone".into(), count: 64, snbt: None, slot: None });
                                     }
                                 }
                             });
@@ -819,6 +961,8 @@ pub fn plugin() -> Plugin {
                                     pos: chest_pos,
                                     kind: LinkKind::Return,
                                     contents: vec![],
+                                    size: MAX_CHEST_SLOTS,
+                                    slot_index: 0,
                                 });
                                 Ok("Return chest linked.")
                             }
@@ -831,6 +975,8 @@ pub fn plugin() -> Plugin {
                                     pos: chest_pos,
                                     kind: LinkKind::Supply,
                                     contents: vec![],
+                                    size: MAX_CHEST_SLOTS,
+                                    slot_index: 0,
                                 });
                                 Ok("Supply chest linked.")
                             }
@@ -994,4 +1140,39 @@ pub fn plugin() -> Plugin {
             }
             false
         })
+}
+
+#[cfg(test)]
+mod migration_tests {
+    use super::*;
+
+    #[test]
+    fn imported_metadata_slots_and_prices_survive_store_roundtrip() {
+        let text = r#"{"state":{"profiles":{"owner":{"owner_uuid":"owner","owner_name":"","merchant_uuid":null,"merchant_pos":null,"supply_chests":[{"pos":{"dim":"minecraft:overworld","x":0,"y":64,"z":0},"kind":"Supply","size":54,"slot_index":1,"contents":[{"item":"minecraft:diamond_sword","count":1,"snbt":"{id:\"minecraft:diamond_sword\",count:1,components:{\"minecraft:damage\":3}}","slot":40}]}],"return_chest":null,"listings":{"key":{"item_key":"key","product":{"item":"minecraft:diamond_sword","count":1,"snbt":"{id:\"minecraft:diamond_sword\",count:1,components:{\"minecraft:damage\":3}}"},"cost":{"item":"minecraft:diamond","count":5}}}}}}}"#;
+        let value: json::Value = json::from_str(text).unwrap();
+        let state: State = json::from_value(value["state"].clone()).unwrap();
+        let p = &state.profiles["owner"];
+        assert!(ensure_plain_trade(p).is_err());
+        assert_eq!(p.supply_chests[0].size, 54);
+        assert_eq!(p.supply_chests[0].contents[0].slot, Some(40));
+        assert_eq!(p.listings["key"].cost.as_ref().unwrap().count, 5);
+        assert_eq!(p.listings["key"].product.stack().unwrap().damage, 3);
+        let encoded = json::to_value(&state).unwrap();
+        assert_eq!(
+            encoded["profiles"]["owner"]["supply_chests"][0]["contents"][0]["snbt"],
+            value["state"]["profiles"]["owner"]["supply_chests"][0]["contents"][0]["snbt"]
+        );
+    }
+
+    #[test]
+    fn old_plain_store_remains_tradeable() {
+        let p: MerchantProfile = json::from_value(json::json!({
+            "owner_uuid":"owner", "owner_name":"name", "merchant_pos":null,
+            "supply_chests":[], "return_chest":null,
+            "listings":{"key":{"item_key":"key", "product":{"item":"minecraft:stone","count":2},
+                "cost":{"item":"minecraft:diamond","count":1}}}
+        }))
+        .unwrap();
+        assert!(ensure_plain_trade(&p).is_ok());
+    }
 }

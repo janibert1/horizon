@@ -1,7 +1,7 @@
 //! Simple Voice Chat, server half, for Horizon: players with the Simple Voice Chat client mod (Fabric/NeoForge,
 //! compatibility version 21 = SVC 2.6.x for 26.x; config `compatibility_version`) talk by proximity, as with the SVC
 //! Paper plugin. Wire format read from henkelmax/simple-voice-chat (common/.../net and voice/common):
-//! * plugin channels (engine hook `plugin_message` + `Host::send_plugin_message`): `voicechat:request_secret` ->
+//! * plugin channels (engine hook `plugin_message` + `Host::send_custom_payload_to_player`): `voicechat:request_secret` ->
 //!   `voicechat:secret` (AES key, connection id, UDP port, codec, MTU, distance, keep-alive, groups, voice host),
 //!   `voicechat:client_state` (muted/disabled) -> `voicechat:state` / `voicechat:states` / `voicechat:remove_state`.
 //!   The server announces its channels with `minecraft:register` on join (Fabric only sends on registered channels).
@@ -9,7 +9,7 @@
 //!   128-bit tag); Authenticate -> AuthenticateAck(nonce = HMAC-SHA256(connection id, address)), ConnectionCheck(nonce)
 //!   -> ConnectionCheckAck, Mic -> PlayerSound to everyone in the same dimension within the distance (whisper: 24),
 //!   KeepAlive both ways (a connection silent for 10 keep-alives is dropped).
-//!   NOT (yet): groups (`enable_groups` is sent as false), the SVC server API for other plugins beyond
+//!   Groups: normal/open/isolated, passwords, persistent/hidden configured groups. NOT (yet): the SVC server API beyond
 //!   `has_voicechat`/`is_connected`, spectator possession, voice categories (location sounds of plugins), recording
 //!   permission (always allowed). `voicechat.speak` / `voicechat.listen` are honoured as SVC's defaults: everyone
 //!   has them unless permissions.json sets the node false (refreshed every 2 s). Voice packets need the UDP port open in the firewall and, behind Velocity, `voice_host` set to the
@@ -24,12 +24,21 @@ use std::time::{Duration, Instant};
 
 const DEFAULT_COMPAT: i32 = 21;
 const MAX_OPUS: usize = 1275;
-const CHANNELS_FROM_CLIENT: &[&str] = &["voicechat:request_secret", "voicechat:client_state"];
+const CHANNELS_FROM_CLIENT: &[&str] = &[
+    "voicechat:request_secret",
+    "voicechat:client_state",
+    "voicechat:create_group",
+    "voicechat:set_group",
+    "voicechat:leave_group",
+];
 const CHANNELS_TO_CLIENT: &[&str] = &[
     "voicechat:secret",
     "voicechat:state",
     "voicechat:states",
     "voicechat:remove_state",
+    "voicechat:add_group",
+    "voicechat:remove_group",
+    "voicechat:joined_group",
 ];
 
 // ---------- FriendlyByteBuf ----------
@@ -42,6 +51,10 @@ impl W {
     }
     fn bool(&mut self, b: bool) -> &mut Self {
         self.u8(b as u8)
+    }
+    fn i16(&mut self, v: i16) -> &mut Self {
+        self.0.extend_from_slice(&v.to_be_bytes());
+        self
     }
     fn i32(&mut self, v: i32) -> &mut Self {
         self.0.extend_from_slice(&v.to_be_bytes());
@@ -102,6 +115,20 @@ impl R<'_> {
     fn bool(&mut self) -> Option<bool> {
         self.u8().map(|b| b != 0)
     }
+    fn i16(&mut self) -> Option<i16> {
+        Some(i16::from_be_bytes(self.take(2)?.try_into().ok()?))
+    }
+    fn utf(&mut self, max: usize) -> Option<String> {
+        let s = String::from_utf8(self.bytes(max * 4)?).ok()?;
+        (s.encode_utf16().count() <= max).then_some(s)
+    }
+    fn password(&mut self) -> Option<Option<String>> {
+        if self.bool()? {
+            Some(Some(self.utf(256)?))
+        } else {
+            Some(None)
+        }
+    }
     fn i32(&mut self) -> Option<i32> {
         self.take(4)
             .map(|b| i32::from_be_bytes(b.try_into().unwrap()))
@@ -118,6 +145,9 @@ impl R<'_> {
         let mut v = 0u32;
         for i in 0..5 {
             let b = self.u8()?;
+            if i == 4 && b > 0x0F {
+                return None;
+            }
             v |= ((b & 0x7F) as u32) << (7 * i);
             if b & 0x80 == 0 {
                 return Some(v);
@@ -162,9 +192,44 @@ struct Conn {
 #[derive(Clone, Default)]
 struct PState {
     name: String,
+    group: Option<u128>,
     muted: bool,
     disabled: bool,
     disconnected: bool,
+}
+#[derive(Clone)]
+struct Group {
+    name: String,
+    password: Option<String>,
+    persistent: bool, // survives an empty group; configured groups are recreated at startup
+    hidden: bool,     // client UI flag, not access control (matches upstream)
+    kind: i16,        // 0 normal, 1 open, 2 isolated
+}
+fn group_bytes(id: u128, g: &Group) -> Vec<u8> {
+    let mut w = W::default();
+    w.uuid(id)
+        .utf(&g.name)
+        .bool(g.password.is_some())
+        .bool(g.persistent)
+        .bool(g.hidden)
+        .i16(g.kind);
+    w.0
+}
+fn valid_text(s: &str, max: usize, name: bool) -> bool {
+    use unicode_general_category::{GeneralCategory, get_general_category};
+    !s.is_empty()
+        && s.encode_utf16().count() <= max
+        && !s.chars().any(|c| {
+            matches!(
+                get_general_category(c),
+                GeneralCategory::Control
+                    | GeneralCategory::Format
+                    | GeneralCategory::PrivateUse
+                    | GeneralCategory::Surrogate
+                    | GeneralCategory::Unassigned
+            )
+        })
+        && (!name || !s.starts_with(char::is_whitespace))
 }
 #[derive(Clone)]
 struct Pos {
@@ -174,6 +239,8 @@ struct Pos {
 #[derive(Default)]
 struct Voice {
     socket: Option<Arc<UdpSocket>>,
+    groups: HashMap<u128, Group>,
+    groups_enabled: bool,
     port: u16,
     distance: f64,
     whisper: f64,
@@ -333,42 +400,62 @@ fn udp_loop(sock: Arc<UdpSocket>) {
                     let Some(me) = v.positions.get(&sender).cloned() else {
                         return Vec::new();
                     };
+                    let group = v.states.get(&sender).and_then(|s| s.group);
+                    let sender_group = group.and_then(|g| v.groups.get(&g));
+                    let proximity = sender_group.is_none_or(|g| g.kind == 1);
                     let dist = if whisper { v.whisper } else { v.distance };
                     let range = (v.distance + 1.0).max(dist);
                     v.conns
                         .iter()
                         .filter(|(u, _)| **u != sender && !v.no_listen.contains(*u))
                         .filter_map(|(u, c)| {
+                            let st = v.states.get(u)?;
+                            if st.disabled || st.disconnected {
+                                return None;
+                            }
+                            let same_group = group.is_some() && st.group == group;
+                            let recv_isolated = st
+                                .group
+                                .and_then(|g| v.groups.get(&g))
+                                .is_some_and(|g| g.kind == 2);
                             let p = v.positions.get(u)?;
                             let d2 = (0..3).map(|i| (p.pos[i] - me.pos[i]).powi(2)).sum::<f64>();
-                            let st = v.states.get(u)?;
-                            (p.dim == me.dim
-                                && d2 <= range * range
-                                && !st.disabled
-                                && !st.disconnected)
-                                .then(|| {
-                                    let key = v
-                                        .by_player
-                                        .get(u)
-                                        .and_then(|cid| v.secrets.get(cid))
-                                        .map(|s| s.key)?;
-                                    Some((c.addr, key, dist as f32))
-                                })?
+                            if !same_group
+                                && !(proximity
+                                    && !recv_isolated
+                                    && p.dim == me.dim
+                                    && d2 <= range * range)
+                            {
+                                return None;
+                            }
+                            let key = v.by_player.get(u).and_then(|cid| v.secrets.get(cid))?.key;
+                            Some((c.addr, key, dist as f32, same_group))
                         })
                         .collect::<Vec<_>>()
                 });
-                for (to, key, dist) in targets {
+                for (to, key, dist, group) in targets {
                     let mut w = W::default();
                     w.uuid(secret.player)
                         .uuid(secret.player)
                         .bytes(&data)
-                        .i64(seq)
-                        .f32(dist)
-                        .u8(if whisper { 0b1 } else { 0 });
-                    send_udp(&sock, &key, to, 0x2, &w.0);
+                        .i64(seq);
+                    if group {
+                        w.u8(0);
+                    } else {
+                        w.f32(dist).u8(if whisper { 0b1 } else { 0 });
+                    }
+                    send_udp(&sock, &key, to, if group { 0x3 } else { 0x2 }, &w.0);
                 }
             }
-            _ => {} // Ping (0x7) and anything else: nothing to do on the server
+            0x7 => {
+                // Diagnostic echo for an authenticated connection only (bounded, no amplification).
+                if p.0.len() == 24
+                    && vs(|v| v.conns.get(&secret.player).is_some_and(|c| c.addr == addr))
+                {
+                    send_udp(&sock, &secret.key, addr, 0x7, p.0);
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -429,7 +516,50 @@ fn start(ctx: &Ctx) {
             return;
         }
     };
+    // Persistent/hidden are server API flags, not fields of CreateGroupPacket.
+    // This port exposes that API through sanitized local config rather than inventing wire fields.
+    let mut groups = HashMap::new();
+    if let Some(entries) = ctx.get("groups").and_then(|x| x.as_array().cloned()) {
+        for x in entries {
+            let Some(id) = x["id"]
+                .as_str()
+                .and_then(|x| u128::from_str_radix(&x.replace('-', ""), 16).ok())
+            else {
+                continue;
+            };
+            let Some(name) = x["name"].as_str().filter(|x| valid_text(x, 24, true)) else {
+                continue;
+            };
+            let password = x["password"].as_str().map(str::to_owned);
+            if password
+                .as_ref()
+                .is_some_and(|x| !valid_text(x, 256, false))
+            {
+                continue;
+            }
+            let kind = match x["type"].as_str() {
+                Some("open") => 1,
+                Some("isolated") => 2,
+                _ => 0,
+            };
+            groups.insert(
+                id,
+                Group {
+                    name: name.into(),
+                    password,
+                    persistent: x["persistent"].as_bool().unwrap_or(true),
+                    hidden: x["hidden"].as_bool().unwrap_or(false),
+                    kind,
+                },
+            );
+        }
+    }
     vs(|v| {
+        v.groups = groups;
+        v.groups_enabled = ctx
+            .get("enable_groups")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(true);
         v.socket = Some(sock.clone());
         v.port = port;
         v.distance = ctx
@@ -461,7 +591,12 @@ fn start(ctx: &Ctx) {
 
 fn state_bytes(w: &mut W, uuid: u128, s: &PState) {
     let flags = (s.muted as u8) | ((s.disabled as u8) << 2) | ((s.disconnected as u8) << 4);
-    w.u8(flags).uuid(uuid).utf(&s.name);
+    w.u8(flags | if s.group.is_some() { 0x20 } else { 0 })
+        .uuid(uuid)
+        .utf(&s.name);
+    if let Some(group) = s.group {
+        w.uuid(group);
+    }
 }
 /// One player's state to every SVC client online.
 fn broadcast_state(ctx: &mut Ctx, uuid: u128) {
@@ -483,6 +618,57 @@ fn broadcast_state(ctx: &mut Ctx, uuid: u128) {
             .host
             .send_custom_payload_to_player(r, "voicechat:state", &w.0);
     }
+}
+
+fn broadcast(ctx: &mut Ctx, channel: &str, data: &[u8]) {
+    let to = vs(|v| {
+        v.compatible
+            .iter()
+            .filter(|(_, ok)| **ok)
+            .map(|(u, _)| *u)
+            .collect::<Vec<_>>()
+    });
+    for u in to {
+        let _ = ctx.host.send_custom_payload_to_player(u, channel, data);
+    }
+}
+fn cleanup_groups(ctx: &mut Ctx) {
+    let removed = vs(|v| {
+        let unused = v
+            .groups
+            .iter()
+            .filter(|(id, g)| !g.persistent && !v.states.values().any(|s| s.group == Some(**id)))
+            .map(|(id, _)| *id)
+            .collect::<Vec<_>>();
+        for id in &unused {
+            v.groups.remove(id);
+        }
+        unused
+    });
+    for id in removed {
+        broadcast(ctx, "voicechat:remove_group", &id.to_be_bytes());
+    }
+}
+fn joined(ctx: &mut Ctx, player: u128, group: Option<u128>, wrong: bool) {
+    let mut w = W::default();
+    w.bool(group.is_some());
+    if let Some(id) = group {
+        w.uuid(id);
+    }
+    w.bool(wrong);
+    let _ = ctx
+        .host
+        .send_custom_payload_to_player(player, "voicechat:joined_group", &w.0);
+}
+fn set_group(ctx: &mut Ctx, player: u128, group: Option<u128>) {
+    vs(|v| {
+        if let Some(s) = v.states.get_mut(&player) {
+            s.group = group;
+        }
+    });
+    broadcast_state(ctx, player);
+    joined(ctx, player, group, false);
+    cleanup_groups(ctx);
 }
 
 fn on_message(ctx: &mut Ctx, channel: &str, data: &[u8]) {
@@ -558,12 +744,23 @@ fn on_message(ctx: &mut Ctx, channel: &str, data: &[u8]) {
                 .i32(mtu)
                 .f64(distance)
                 .i32(keep)
-                .bool(false)
+                .bool(vs(|v| v.groups_enabled))
                 .utf(&host)
                 .bool(true);
             let _ = ctx
                 .host
                 .send_custom_payload_to_player(player, "voicechat:secret", &w.0);
+            let groups = vs(|v| {
+                v.groups
+                    .iter()
+                    .map(|(id, g)| group_bytes(*id, g))
+                    .collect::<Vec<_>>()
+            });
+            for data in groups {
+                let _ =
+                    ctx.host
+                        .send_custom_payload_to_player(player, "voicechat:add_group", &data);
+            }
             // everyone's state to the newcomer (PlayerStateManager.onPlayerCompatibilityCheckSucceeded)
             let all: Vec<(u128, PState)> = vs(|v| {
                 v.states
@@ -580,6 +777,66 @@ fn on_message(ctx: &mut Ctx, channel: &str, data: &[u8]) {
             let _ = ctx
                 .host
                 .send_custom_payload_to_player(player, "voicechat:states", &w.0);
+        }
+        "voicechat:create_group" | "voicechat:set_group" => {
+            if !vs(|v| v.groups_enabled && v.compatible.get(&player) == Some(&true)) {
+                return;
+            }
+            let name = vs(|v| v.states.get(&player).map(|s| s.name.clone())).unwrap_or_default();
+            if !ctx.has_default_perm(player, &name, "voicechat.groups") {
+                return;
+            }
+            let mut r = R(data);
+            if channel == "voicechat:create_group" {
+                let (Some(name), Some(password), Some(kind)) = (r.utf(24), r.password(), r.i16())
+                else {
+                    return;
+                };
+                if !r.0.is_empty()
+                    || !valid_text(&name, 24, true)
+                    || password
+                        .as_ref()
+                        .is_some_and(|x| !valid_text(x, 256, false))
+                {
+                    return;
+                }
+                let id = u128::from_be_bytes(random::<16>());
+                let g = Group {
+                    name,
+                    password,
+                    persistent: false,
+                    hidden: false,
+                    kind: if (0..=2).contains(&kind) { kind } else { 0 },
+                };
+                let data = group_bytes(id, &g);
+                vs(|v| {
+                    v.groups.insert(id, g);
+                });
+                broadcast(ctx, "voicechat:add_group", &data);
+                set_group(ctx, player, Some(id));
+            } else {
+                let (Some(id), Some(password)) = (r.uuid(), r.password()) else {
+                    return;
+                };
+                if !r.0.is_empty() {
+                    return;
+                }
+                let group = vs(|v| v.groups.get(&id).cloned());
+                let Some(group) = group else { return };
+                if vs(|v| v.states.get(&player).is_some_and(|s| s.group == Some(id))) {
+                    return;
+                }
+                if group.password.is_some() && group.password != password {
+                    joined(ctx, player, None, true);
+                    return;
+                }
+                set_group(ctx, player, Some(id));
+            }
+        }
+        "voicechat:leave_group" => {
+            if data.is_empty() && vs(|v| v.compatible.get(&player) == Some(&true)) {
+                set_group(ctx, player, None);
+            }
         }
         "voicechat:client_state" => {
             let mut r = R(data);
@@ -664,6 +921,12 @@ pub fn plugin() -> Plugin {
         })
         .on_quit(|ctx| {
             let Some(u) = ctx.player_uuid() else { return };
+            vs(|v| {
+                if let Some(s) = v.states.get_mut(&u) {
+                    s.group = None;
+                }
+            });
+            cleanup_groups(ctx);
             let to = vs(|v| {
                 v.states.remove(&u);
                 v.conns.remove(&u);

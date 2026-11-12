@@ -2675,6 +2675,59 @@ mod snbt_tests {
         eprintln!("{ok} stacks parsed");
         assert!(bad.is_empty(), "{bad:?}");
     }
+    /// Optional private real-copy proof, no engine builds on netcup:
+    /// HPLUG_MERCHANTLINK_JSON=<scratch>/merchantlink.json cargo test -p hplug migrated_merchantlink_items_round_trip
+    /// Run an already built matching SDK test executable directly when available.
+    #[test]
+    fn migrated_merchantlink_items_round_trip() {
+        let Ok(path) = std::env::var("HPLUG_MERCHANTLINK_JSON") else {
+            return;
+        };
+        let data: super::Value =
+            super::json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let mut checked = 0;
+        let mut check = |item: &super::Value| {
+            let text = item["snbt"]
+                .as_str()
+                .map(str::to_owned)
+                .unwrap_or_else(|| format!("{{id:{},count:{}}}", item["item"], item["count"]));
+            let (raw, used) = horizon_world::nbt::parse_snbt(&text).expect("item SNBT parses");
+            assert_eq!(used, text.len(), "trailing data on item {checked}");
+            let stack = super::item_from_snbt(&text).expect("engine decodes item");
+            assert_eq!(&*stack.item, item["item"].as_str().unwrap());
+            assert_eq!(stack.count as u64, item["count"].as_u64().unwrap());
+            let saved = horizon_client::save::item_to_nbt(&stack);
+            // Strict: a normalised/dropped component also requires explicit review.
+            assert!(
+                raw == saved,
+                "item {checked} changed during engine round trip; inspect privately"
+            );
+            let text2 = super::item_to_snbt(&stack);
+            let again = super::item_from_snbt(&text2).expect("saved item re-parses");
+            assert_eq!(super::item_to_snbt(&again), text2);
+            checked += 1;
+        };
+        for profile in data["state"]["profiles"].as_object().unwrap().values() {
+            for chest in profile["supply_chests"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .chain((!profile["return_chest"].is_null()).then_some(&profile["return_chest"]))
+            {
+                for item in chest["contents"].as_array().unwrap() {
+                    check(item);
+                }
+            }
+            for listing in profile["listings"].as_object().unwrap().values() {
+                check(&listing["product"]);
+                if !listing["cost"].is_null() {
+                    check(&listing["cost"]);
+                }
+            }
+        }
+        assert!(checked > 0, "no MerchantLink items checked");
+        eprintln!("{checked} MerchantLink stacks round-tripped");
+    }
 }
 
 /// Context for upstream's synchronous teleport hook, which has no Host access.

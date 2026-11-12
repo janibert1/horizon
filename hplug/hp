@@ -211,4 +211,5 @@ def main():
      "test": lambda: cmd_test(rest), "run": lambda: cmd_run(rest[0] if rest else None),
      "list": lambda: print("\n".join(plugin_names()))}.get(c, lambda: die("unknown command " + c))()
 
-main()
+if __name__ == "__main__":
+    main()
