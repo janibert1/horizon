@@ -23,9 +23,12 @@ cmd chunky progress
 expect [Chunky] No tasks running.
 cmd bluemap
 expect 0 pending render tasks
-# several tasks: the second waits for the first, both show in progress, and Chunky-format task files exist
-cmd chunky start world square 0 0 64
-expect [Chunky] Task started for world at 0, 0 with radius 64.
+# Hold a large first task paused so queue assertions do not race warm, already generated chunks.
+# The second waits for the first; both show in progress and can be paused/cancelled independently.
+cmd chunky start world square 0 0 2000
+expect [Chunky] Task started for world at 0, 0 with radius 2000.
+cmd chunky pause world
+expect [Chunky] Task paused for world.
 cmd chunky start world_nether square 0 0 32
 expect [Chunky] Task started for world_nether at 0, 0 with radius 32.
 expect starts when the running one is done
