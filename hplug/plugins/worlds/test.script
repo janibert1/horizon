@@ -1,0 +1,37 @@
+# worlds (Multiverse): create a void world, list it, go there, set its spawn, come back
+wait 1
+cmd mv create arena void
+expect World arena (worlds:arena, normal, void) created
+cmd mv create arena void
+expect exists
+cmd mv list
+expect worlds:arena
+cmd mv tp arena
+expect Teleporting Tester to arena
+wait 4
+cmd mv info
+expect (worlds:arena)
+expect Players (1): Tester
+cmd mv setspawn
+expect Spawn of arena set here
+cmd mv tp world
+expect Teleporting Tester to world
+wait 3
+cmd mv info arena
+expect Players (0)
+cmd mv tp nowhere
+expect No world nowhere
+# a Nether-type world (Multiverse `/mv create <name> NETHER`): nether terrain, nether rules
+cmd mv create hell nether
+expect World hell (worlds:hell, nether, normal) created
+cmd mv tp hell
+expect Teleporting Tester to hell
+wait 6
+cmd mv info
+expect (worlds:hell)
+# nether terrain: the bedrock roof at y 127 above the player
+cmd execute at Tester if block ~ 127 ~ minecraft:bedrock run tellraw Tester "NETHER ROOF"
+expect NETHER ROOF
+cmd mv tp world
+wait 3
+expect-none panicked

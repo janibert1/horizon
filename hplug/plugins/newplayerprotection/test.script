@@ -1,0 +1,9 @@
+# first join is protected for 5 s (fixture): damage is refused ("invulnerable"), then it ends and damage lands
+cmd gamemode survival
+wait 1
+cmd damage Tester 3
+expect commands.damage.invulnerable
+wait 5
+expect protection has ended
+cmd damage Tester 3
+expect commands.damage.success

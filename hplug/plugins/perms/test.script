@@ -1,0 +1,23 @@
+# LuckPerms-compatible /lp over permissions.json
+wait 1
+cmd lp creategroup vip
+expect vip was successfully created.
+cmd lp group vip permission set cosmetics.hat.crown
+expect Set cosmetics.hat.crown to true for vip.
+cmd lp user Tester parent add vip
+expect Tester now inherits permissions from vip.
+cmd lp group vip permission check cosmetics.hat.crown
+expect has cosmetics.hat.crown set to true
+cmd lp group vip permission check cosmetics.hat.other
+expect set to false
+# negation beats the group grant for this player
+cmd lp user Tester permission set cosmetics.hat.crown false
+expect Set cosmetics.hat.crown to false for Tester.
+cmd lp group vip meta setprefix 10 &6[VIP]
+expect now has prefix
+cmd lp user Tester info
+expect Parent Groups: vip
+cmd lp listgroups
+expect vip(10)
+cmd lp deletegroup default
+expect cannot be deleted

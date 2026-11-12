@@ -1,0 +1,15 @@
+# status default is LOCKED (config default locked: true)
+cmd endlock status
+expect currently LOCKED
+# give a slow box time to generate the chunks around (0,100,0), else setblock is refused
+wait 8
+# stand inside a real End portal block: the portal hook must refuse and tell us
+cmd setblock 0 100 0 minecraft:end_portal
+cmd tp @s 0.5 100 0.5
+expect The End is not open yet
+# open it: next portal tick sends us to the End's obsidian platform (100, 49, 0)
+cmd endlock unlock
+expect now OPEN
+expect-pos 100 49 0 6
+cmd endlock lock
+expect now LOCKED

@@ -1,0 +1,8 @@
+[package]
+name = "hplug-plugin-vcnotifier"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hplug = { path = "../../sdk" }
+hplug-plugin-voicechat = { path = "../voicechat" }

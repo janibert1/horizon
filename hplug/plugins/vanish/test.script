@@ -1,0 +1,23 @@
+wait 1
+cmd vanish
+expect You are now vanished.
+cmd vanishlist
+expect Tester
+cmd vanish
+expect You are visible again.
+cmd vanishlist
+expect Vanished online: -
+# no pickups while vanished
+cmd clear Tester
+cmd vanish
+expect You are now vanished.
+cmd execute at Tester run summon item ~ ~ ~ {Item:{id:"minecraft:diamond",count:1},PickupDelay:0}
+wait 3
+cmd execute unless items entity Tester container.* minecraft:diamond run tellraw Tester "NO PICKUP"
+expect NO PICKUP
+cmd vanish
+expect You are visible again.
+wait 3
+cmd execute if items entity Tester container.* minecraft:diamond run tellraw Tester "PICKED UP"
+expect PICKED UP
+expect-none panicked

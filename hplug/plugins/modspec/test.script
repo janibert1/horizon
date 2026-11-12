@@ -1,0 +1,12 @@
+# spec saves the place and spectates, norm returns there in survival
+wait 1
+cmd spec
+expect return point has been saved
+cmd spec
+expect already have a stored return point
+wait 2
+cmd norm
+expect Returned to
+wait 2
+cmd norm
+expect No stored return point

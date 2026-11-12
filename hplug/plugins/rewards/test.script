@@ -1,0 +1,28 @@
+# Test rewards economy: balance, give, take, set, pay, history and negative controls
+cmd rewards
+expect You have 0 Shards
+cmd reward give Tester 100 Starter bonus
+expect Gave Tester 100 Shards (new balance: 100)
+cmd rewards balance
+expect You have 100 Shards
+cmd reward take Tester 30 Penalty
+expect Took 30 Shards from Tester (new balance: 70)
+cmd reward set Tester 500
+expect Set Tester's balance to 500 Shards
+cmd reward balance Tester
+expect Tester has 500 Shards
+# History check
+cmd rewards history
+expect Your last 3 reward events
+expect ADMIN_SET
+# Negative control: giving to an unknown player fails cleanly
+cmd reward give NonExistentPlayer404 50
+expect Unknown player 'NonExistentPlayer404'
+# Negative control: paying yourself fails cleanly
+cmd rewards pay Tester 10
+expect You cannot pay yourself
+# Negative control: paying more than balance fails cleanly
+cmd rewards pay Alice 1000
+expect You don't have enough Shards
+# Negative control: no server errors or plugin panics
+expect-none That command failed

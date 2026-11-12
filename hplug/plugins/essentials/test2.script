@@ -1,0 +1,78 @@
+# essentials extras: kits, fly, hat, workbench, enderchest, mail, jails (src/extra.rs)
+wait 1
+cmd kits
+expect Kits:
+expect tools
+cmd kit nosuch
+expect That kit does not exist.
+cmd kit tools
+expect Received kit tools.
+expect kit command ran
+wait 1
+cmd execute if items entity Tester container.* minecraft:stone_sword run tellraw Tester "HAS stone_sword"
+expect HAS stone_sword
+cmd execute if items entity Tester container.* minecraft:diamond_pickaxe run tellraw Tester "HAS diamond_pickaxe"
+expect HAS diamond_pickaxe
+cmd kit once
+expect Received kit once.
+wait 1
+cmd execute if items entity Tester container.* minecraft:golden_apple run tellraw Tester "HAS golden_apple"
+expect HAS golden_apple
+cmd fly
+expect Set fly mode enabled for Tester.
+cmd fly off
+expect Set fly mode disabled for Tester.
+cmd clear Tester
+wait 1
+cmd hat
+expect You must be holding an item to use as a hat.
+cmd hat remove
+expect You are not wearing a hat.
+cmd item replace entity Tester weapon.mainhand with minecraft:white_wool
+wait 1
+cmd hat
+expect Enjoy your new hat!
+wait 1
+cmd execute if items entity Tester armor.head minecraft:white_wool run tellraw Tester "HAT ON"
+expect HAT ON
+cmd workbench
+expect-none Could not open the workbench
+cmd enderchest
+expect-none Error
+cmd mail
+expect You do not have any mail.
+cmd mail send Tester hello from me
+expect Mail sent to Tester!
+expect You have new mail!
+cmd mail read
+expect [Tester] hello from me
+cmd mail clear
+expect Mail cleared!
+cmd mail send Nobody123 hi
+expect Player Nobody123 not found.
+cmd jails
+expect Jails: none
+cmd setjail cell
+expect Jail cell has been set.
+cmd jails
+expect cell
+cmd jail Tester cell 5m
+expect You may not jail that person.
+cmd jail Tester nojail
+expect That jail does not exist.
+cmd unjail Tester
+expect Player Tester is not jailed.
+cmd deljail cell
+expect Jail cell has been removed.
+cmd give Tester minecraft:diamond 3
+wait 1
+cmd createkit mine 0
+expect Created kit mine
+cmd kits
+expect mine
+cmd delkit mine
+expect Deleted kit mine.
+# kit cooldowns run in test3.script as a non-op (an op is exempt: essentials.kit.exemptdelay)
+wait 3
+cmd deop Tester
+expect-none panicked

@@ -1,0 +1,9 @@
+# a panic in a scheduled task must not kill the server
+# client: Tester
+cmd gamemode creative
+wait 1
+cmd panictest
+expect panic scheduled
+wait 2
+cmd hello
+expect Hello, Tester

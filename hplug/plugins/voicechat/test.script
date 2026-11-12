@@ -1,0 +1,4 @@
+wait 2
+cmd voicechat
+expect Voice chat:
+expect Tester: no mod

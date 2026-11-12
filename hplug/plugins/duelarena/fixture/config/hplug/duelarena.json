@@ -1,0 +1,9 @@
+{
+  "dimension": "minecraft:overworld",
+  "base_x": 1000,
+  "base_y": 70,
+  "base_z": 1000,
+  "spacing": 100,
+  "countdown_secs": 1,
+  "challenge_timeout_secs": 60
+}

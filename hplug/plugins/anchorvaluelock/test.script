@@ -1,0 +1,24 @@
+# value blocks in the spawn region crumble without drops; wipecontainers removes containers; outside the region nothing changes
+# client: Tester
+cmd anchorlock status
+expect not set
+cmd claimadmin spawn set 90 -40 105 -25
+expect Spawn region set
+cmd anchorlock status
+expect protecting 13 block type(s)
+cmd setblock 96 144 -32 minecraft:diamond_block
+cmd setblock 100 144 -30 minecraft:chest
+cmd setblock 96 144 -30 minecraft:dirt
+wait 1
+break 96 144 -32
+expect crumbles without leaving
+wait 1
+cmd execute if block 96 144 -32 minecraft:air
+expect conditional.pass
+cmd anchorlock wipecontainers
+expect fill commands queued
+wait 3
+cmd execute if block 100 144 -30 minecraft:air
+expect conditional.pass
+cmd execute if block 96 144 -30 minecraft:dirt
+expect conditional.pass

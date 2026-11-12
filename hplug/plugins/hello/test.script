@@ -1,0 +1,12 @@
+wait 1
+cmd hello
+expect Hello
+cmd demosethome
+expect Home saved
+cmd spawnhub
+expect-pos 0.5 100 0.5 3
+cmd demohome
+expect Teleporting home
+wait 2
+break 96 144 -32
+expect you broke a block at 96 144 -32

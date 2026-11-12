@@ -1,0 +1,82 @@
+cmd gamemode creative
+wait 1
+
+# 1. Initial stats check
+cmd provenance stats
+expect testing_mode: true
+expect IDs minted (all time): 0
+
+# 2. Admin genesis give: mint fresh ID onto tracked item
+cmd provenance give Tester diamond 1
+expect Gave Tester 1x minecraft:diamond (tagged with provenance IDs)
+wait 1
+
+# 3. Stats reflect minted count
+cmd provenance stats
+expect IDs minted (all time): 1
+
+# Assert item has custom_data provenance tag
+cmd execute if items entity @s hotbar.* minecraft:diamond[custom_data]
+expect commands.execute.conditional.pass_count
+
+# Negative control: looking for a non-existent provenance ID must fail
+cmd execute if items entity @s hotbar.* *[custom_data~{provenance_ids:"not-present"}]
+expect commands.execute.conditional.fail
+
+# 4. Clean scan: with only one legitimate genesis item, no duplicates exist
+cmd provenance scan
+expect No duplicate provenance IDs found (testing_mode=true)
+
+# 5. Create a duplicate: give two non-stackable diamond swords sharing the exact same ID
+cmd give @s minecraft:diamond_sword[custom_data={provenance_ids:"dupe-sword-1"}] 1
+wait 1
+cmd give @s minecraft:diamond_sword[custom_data={provenance_ids:"dupe-sword-1"}] 1
+wait 1
+
+# 6. Scan detects the duplicate ID
+cmd provenance scan
+expect 1 duplicate ID(s) found
+expect minecraft:diamond_sword id=dupe-sword... x2
+
+# 7. Verify violation was logged in stats and lookup works
+cmd provenance stats
+expect Violations logged: 1
+
+cmd provenance lookup dupe-sword
+expect Found 1 violation record(s)
+
+# Negative control: lookup of nonexistent ID reports no record
+cmd provenance lookup non-existent-id-xyz
+expect No recorded violation matching ID 'non-existent-id-xyz'
+
+# 8. Container persistence: store tagged item in chest and verify custom_data survives
+cmd setblock 96 146 -32 minecraft:chest
+wait 1
+cmd item replace block 96 146 -32 container.0 with minecraft:diamond[custom_data={provenance_ids:"chest-tag-1"}] 1
+wait 1
+cmd execute if items block 96 146 -32 container.* *[custom_data~{provenance_ids:"chest-tag-1"}]
+expect commands.execute.conditional.pass_count
+
+# Negative control: chest does not have non-present tag
+cmd execute if items block 96 146 -32 container.* *[custom_data~{provenance_ids:"non-present"}]
+expect commands.execute.conditional.fail
+
+# 9. Mode toggle
+cmd provenance mode enforce
+expect Set testing_mode = false (live confiscation)
+
+cmd provenance mode test
+expect Set testing_mode = true (log-only)
+
+# genesis switches (mining/mob-kill/loot drops through the SDK's on_loot); off by default
+cmd provenance genesis
+expect genesis mined=false mobkill=false loot=false
+cmd provenance genesis mined on
+expect genesis mined=true mobkill=false loot=false
+cmd provenance genesis mined off
+expect genesis mined=false
+
+# crafting propagation switch is on by default (needs the engine hook item_craft_result); the real craft path
+# is not scriptable with hp-client (no menu clicks), see docs/lanes/itemprov-NOTES.md
+cmd provenance stats
+expect Tracked materials

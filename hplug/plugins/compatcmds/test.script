@@ -1,0 +1,47 @@
+# chunky -> /pregen (fixture turns on horizon-pregen); bluemap stub
+wait 1
+cmd chunky progress
+expect [Chunky] No tasks running.
+cmd chunky pause
+expect [Chunky] No tasks running.
+cmd chunky world nowhere
+expect Invalid world nowhere
+cmd chunky radius 2000
+expect Radius changed to 2000
+cmd chunky center 0 0
+expect Center changed to 0, 0
+cmd chunky start
+expect [Chunky] Task started for world at 0, 0 with radius 2000.
+wait 1
+cmd chunky progress
+expect Task
+expect-none No tasks running
+cmd chunky cancel
+expect [Chunky] Task cancelled for world.
+wait 2
+cmd chunky progress
+expect [Chunky] No tasks running.
+cmd bluemap
+expect 0 pending render tasks
+# several tasks: the second waits for the first, both show in progress, and Chunky-format task files exist
+cmd chunky start world square 0 0 64
+expect [Chunky] Task started for world at 0, 0 with radius 64.
+cmd chunky start world_nether square 0 0 32
+expect [Chunky] Task started for world_nether at 0, 0 with radius 32.
+expect starts when the running one is done
+cmd chunky start world
+expect Task already exists for world.
+wait 1
+cmd chunky progress
+expect Task queued for world_nether.
+cmd chunky pause world_nether
+expect [Chunky] Task paused for world_nether.
+cmd chunky progress
+expect Task paused for world_nether.
+cmd chunky cancel
+expect [Chunky] Task cancelled for world.
+expect [Chunky] Task cancelled for world_nether.
+wait 2
+cmd chunky progress
+expect [Chunky] No tasks running.
+expect-none panicked

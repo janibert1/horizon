@@ -1,0 +1,52 @@
+# Test playtime, packs, items, and votes
+cmd rewards playtime Alice
+expect Alice's playtime: 1h 0m
+cmd rewards playtime Bob
+expect Bob's playtime: 2d 3h 5m
+cmd rewards top 2
+expect Top 2 playtime:
+expect Bob
+expect Alice
+
+# Packs catalog and self-purchase
+cmd rewards packs
+expect Purchasable packs:
+expect Supply Crate
+cmd reward set Tester 1000
+expect Set Tester's balance to 1000 Shards
+cmd rewards buy supply-crate
+expect Purchased Supply Crate!
+cmd rewards balance
+expect You have 200 Shards
+
+# Admin pack grant (repeatable helper pack grants 1000 shards + diamonds)
+cmd reward pack give Tester helper
+expect Granted pack 'Helper's Thanks' to Tester
+cmd rewards balance
+expect You have 1200 Shards
+
+# One-time pack grant (welcome pack grants 300 shards)
+cmd reward pack give Tester welcome
+expect Granted pack 'Welcome Pack' to Tester
+cmd rewards balance
+expect You have 1500 Shards
+
+# Negative control: one-time pack cannot be claimed twice
+cmd reward pack give Tester welcome
+expect That player already claimed this one-time pack
+
+# Negative control: purchasing non-existent pack fails cleanly
+cmd rewards buy nonexistent-pack
+expect No purchasable pack named 'nonexistent-pack'
+
+# Item reward grant
+cmd reward giveitem Tester diamond 3 Quest complete
+expect Gave Tester 3x minecraft:diamond
+
+# Vote reward
+cmd reward vote Tester PlanetMinecraft
+expect Granted vote reward to Tester
+cmd rewards balance
+expect You have 1550 Shards
+
+expect-none That command failed

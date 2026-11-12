@@ -1,0 +1,73 @@
+# LuckPerms contexts, temporary nodes, tracks and meta (checks read the file without the op shortcut)
+wait 1
+cmd lp user Tester permission set ctx.node true world=world_nether
+expect Set ctx.node to true for Tester in context world=world_nether.
+cmd lp user Tester permission check ctx.node
+expect has ctx.node set to false
+cmd execute in minecraft:the_nether run tp Tester 0 100 0
+wait 3
+cmd lp user Tester permission check ctx.node
+expect has ctx.node set to true
+cmd execute in minecraft:overworld run tp Tester 0 100 0
+wait 3
+cmd lp user Tester permission check ctx.node
+expect has ctx.node set to false
+cmd lp user Tester permission set srv.node true server=other
+cmd lp user Tester permission check srv.node
+expect has srv.node set to false
+cmd lp user Tester permission settemp temp.node true 1h
+expect for a duration of
+cmd lp user Tester permission check temp.node
+expect has temp.node set to true
+cmd lp user Tester permission settemp gone.node true 2s
+expect for a duration of
+cmd lp user Tester permission check gone.node
+expect has gone.node set to true
+wait 3
+cmd lp user Tester permission check gone.node
+expect has gone.node set to false
+cmd lp user Tester permission unsettemp temp.node
+expect Unset temp.node for Tester.
+cmd lp user Tester permission info
+expect ctx.node [world=world_nether]
+cmd lp creategroup tra
+cmd lp creategroup trb
+cmd lp createtrack ranks
+expect ranks was successfully created.
+cmd lp track ranks append tra
+expect Group tra was appended to track ranks.
+cmd lp track ranks append trb
+cmd lp track ranks info
+expect tra ---> trb
+cmd lp user Tester promote ranks
+expect so they were added to the first group, tra.
+cmd lp user Tester promote ranks
+expect along track ranks from tra to trb.
+cmd lp user Tester promote ranks
+expect is already at the end of ranks.
+cmd lp user Tester demote ranks
+expect along track ranks from trb to tra.
+cmd lp listtracks
+expect ranks
+cmd lp user Tester parent addtemp trb 1h
+expect now inherits permissions from trb for a duration of
+cmd lp user Tester parent info
+expect trb (expires in
+cmd lp group trb permission set trb.node
+cmd lp user Tester permission check trb.node
+expect has trb.node set to true
+cmd lp user Tester parent removetemp trb
+expect no longer inherits permissions from trb
+cmd lp user Tester permission check trb.node
+expect has trb.node set to false
+cmd lp user Tester meta set homes 5
+expect Set meta key homes to 5 for Tester.
+cmd lp user Tester meta setsuffix &7*
+expect now has suffix
+cmd lp user Tester meta info
+expect meta: homes=5
+cmd lp user Tester meta unset homes
+expect Unset meta key homes for Tester.
+cmd lp deletetrack ranks
+expect ranks was successfully deleted.
+expect-none panicked

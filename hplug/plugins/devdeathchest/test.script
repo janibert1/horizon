@@ -1,0 +1,79 @@
+# devdeathchest integration test: admin commands, death chest placement, inventory storage,
+# holograms (text_display tagged ddc_<id>), and cleanup.
+
+# Phase 5 & 6: Admin commands, blacklist management, report store
+cmd deathchest
+expect DeathChest Commands
+cmd deathchest reload
+expect Configuration reloaded successfully
+cmd dc reload
+expect Configuration reloaded successfully
+
+cmd deathchest blacklist add minecraft:dirt
+expect Added minecraft:dirt to blacklist
+cmd deathchest blacklist list
+expect minecraft:dirt
+cmd deathchest blacklist remove minecraft:dirt
+expect Removed minecraft:dirt from blacklist
+
+cmd deathchest report create
+expect Report #1 created successfully
+cmd deathchest report list
+expect Reports (1)
+cmd deathchest report latest
+expect Latest Report #1
+cmd deathchest report delete 1
+expect Deleted report #1
+cmd deathchest report list
+expect No reports available
+
+# Phase 1, 2, 4: Survival death, chest creation, item storage, holograms
+cmd gamemode survival
+wait 1
+cmd give @s minecraft:cobblestone 5
+cmd give @s minecraft:golden_apple 1
+wait 1
+cmd kill Tester
+wait 1
+
+# Positive assertion: chest is placed at the death point
+cmd execute if block 96 146 -32 minecraft:chest
+expect commands.execute.conditional.pass
+
+# Positive assertion: inventory items were moved into the chest
+cmd execute if items block 96 146 -32 container.* minecraft:cobblestone
+expect commands.execute.conditional.pass_count
+cmd execute if items block 96 146 -32 container.* minecraft:golden_apple
+expect commands.execute.conditional.pass_count
+
+# Negative control 1: uncarried item is NOT in the chest
+cmd execute if items block 96 146 -32 container.* minecraft:emerald
+expect commands.execute.conditional.fail
+
+# Negative control 2: stored items are NOT left scattered on the ground
+cmd execute as @e[type=item] if data entity @s Item{id:"minecraft:cobblestone"}
+expect commands.execute.conditional.fail
+
+# Phase 4: Hologram verification (text_display entity tagged ddc_<id>)
+cmd execute if entity @e[type=text_display,tag=ddc_1]
+expect commands.execute.conditional.pass_count
+
+# Negative control 3: Nonexistent hologram tag does not match
+cmd execute if entity @e[type=text_display,tag=ddc_9999]
+expect commands.execute.conditional.fail
+
+# Check active chest list command
+cmd deathchest list
+expect Active chests (1)
+
+# Phase 5: World deletion command
+cmd deathchest deleteinworld all
+expect A total of 1 chests were deleted in all worlds
+
+# Negative control 4: Chest block is removed after deletion
+cmd execute if block 96 146 -32 minecraft:chest
+expect commands.execute.conditional.fail
+
+# Negative control 5: Hologram entity is despawned after deletion
+cmd execute if entity @e[type=text_display,tag=ddc_1]
+expect commands.execute.conditional.fail

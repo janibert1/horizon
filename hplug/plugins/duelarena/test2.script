@@ -1,0 +1,20 @@
+# duelarena tests for non-op player Guest
+# client: Guest
+wait 1
+cmd duel
+expect Usage: /duel <challenge|accept|deny|cancel|forfeit|watch|unwatch|stats>
+
+# non-op stats check
+cmd duel stats
+expect Duel stats for Guest: 0 wins, 0 losses (0 duels played)
+
+# non-op challenge accept/deny checks
+cmd duel accept
+expect You have no pending duel challenge
+cmd duel deny
+expect You have no pending duel challenge
+
+# negative control: admin commands denied for non-op
+cmd duel admin arenas
+expect You must be an op to use /duel admin
+expect-none Duel Arenas (5 total)

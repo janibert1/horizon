@@ -1,0 +1,61 @@
+# duelarena tests for op player Tester
+# client: Tester
+# the first start creates and force-loads the arena world (blocks the server ~15-20 s on 2 cores)
+wait 25
+cmd duel
+expect Usage: /duel <challenge|accept|deny|cancel|forfeit|watch|unwatch|stats>
+
+# challenge edge cases
+cmd duel challenge NoSuchPlayer
+expect Player not found or offline
+cmd duel challenge Tester
+expect You can't challenge yourself
+
+# accept, deny, cancel with no pending challenge
+cmd duel accept
+expect You have no pending duel challenge
+cmd duel deny
+expect You have no pending duel challenge
+cmd duel cancel
+expect You have no outgoing challenge to cancel
+
+# forfeit and spectate when not in duel
+cmd duel forfeit
+expect You're not in a duel
+cmd duel watch NoSuchPlayer
+expect Player not found or offline
+cmd duel watch Tester
+expect Tester isn't in an active duel
+cmd duel unwatch
+expect You're not spectating anything
+
+# stats check
+cmd duel stats
+expect Duel stats for Tester: 0 wins, 0 losses (0 duels played)
+
+# negative control on unknown subcommand
+cmd duel nonsense
+expect Usage: /duel
+expect-none internal error
+
+# admin arena status
+cmd duel admin arenas
+expect Duel Arenas (5 total)
+expect Arena 1: Free
+expect Arena 5: Free
+expect Queue: 0 duel(s) waiting
+
+# inventory snapshot and restore
+cmd give Tester minecraft:diamond 5
+wait 1
+cmd duel admin snapshot Tester
+expect Saved snapshot for Tester with
+cmd clear Tester
+wait 1
+cmd duel admin restore Tester
+expect Restored
+
+# automated test cycle (arena allocation, queue capacity, match transitions, stats)
+cmd duel admin test_cycle
+expect [DuelArena] Self-test cycle passed successfully
+expect-none Self-test failures

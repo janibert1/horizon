@@ -1,0 +1,8 @@
+[package]
+name = "hp-client"
+version = "0.1.0"
+edition = "2024"
+description = "Scripted headless protocol client for testing Horizon server plugins"
+
+[dependencies]
+horizon-protocol = { path = "../../crates/horizon-protocol" }

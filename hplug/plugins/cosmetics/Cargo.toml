@@ -1,0 +1,9 @@
+[package]
+name = "hplug-plugin-cosmetics"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hplug = { path = "../../sdk" }
+horizon-world = { path = "../../../crates/horizon-world" }
+hplug-plugin-vanish = { path = "../vanish" }

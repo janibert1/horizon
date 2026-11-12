@@ -1,0 +1,24 @@
+# a dying player's inventory is put into a chest at the death point (eyes less 0.3 = y 146) instead of being thrown
+cmd gamemode survival
+wait 1
+cmd give @s minecraft:cobblestone 5
+cmd give @s minecraft:diamond_sword 1
+wait 1
+cmd kill Tester
+wait 1
+cmd execute if block 96 146 -32 minecraft:chest
+expect commands.execute.conditional.pass
+cmd execute if items block 96 146 -32 container.* minecraft:cobblestone
+expect commands.execute.conditional.pass_count
+cmd execute if items block 96 146 -32 container.* minecraft:diamond_sword
+expect commands.execute.conditional.pass_count
+# control: an item that was never carried is not in the chest
+cmd execute if items block 96 146 -32 container.* minecraft:emerald
+expect commands.execute.conditional.fail
+# nothing of it lies on the ground (a head from the playerheads plugin may)
+cmd execute as @e[type=item] if data entity @s Item{id:"minecraft:cobblestone"}
+expect commands.execute.conditional.fail
+
+# both death-chest plugins are linked in every test server: by default only the simple graves take drops
+cmd graves
+expect Simple graves: ON

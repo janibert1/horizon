@@ -1,0 +1,10 @@
+# the block is gone, then untrust and abandon
+# client: Tester
+cmd execute if block 96 144 -32 minecraft:air
+expect conditional.pass
+cmd untrust Griefer
+expect no longer trusted
+cmd abandonclaim
+expect abandoned
+cmd claiminfo
+expect Unclaimed

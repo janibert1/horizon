@@ -1,0 +1,5 @@
+# client: Tester
+cmd claimadmin spawn add Griefer
+expect one of the spawn builders
+cmd execute if block 96 144 -32 minecraft:stone
+expect conditional.pass

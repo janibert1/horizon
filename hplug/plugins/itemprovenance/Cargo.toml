@@ -1,0 +1,10 @@
+[package]
+name = "hplug-plugin-itemprovenance"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hplug = { path = "../../sdk" }
+horizon-items = { path = "../../../crates/horizon-items" }
+horizon-world = { path = "../../../crates/horizon-world" }
+serde = { version = "1", features = ["derive"] }

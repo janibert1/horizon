@@ -1,0 +1,3 @@
+# Horizon has its own /mute (chat filter); switch it off so the plugin can own the command
+[chat_filter]
+enabled = false

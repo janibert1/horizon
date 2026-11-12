@@ -1,0 +1,22 @@
+# a farmer buys 1 wheat for 1 diamond sword but only once (maxUses 1); with the plugin on the same offer can be traded again
+cmd gamemode survival
+cmd give @s minecraft:wheat 4
+wait 1
+cmd summon villager 98.5 145 -31.5 {NoAI:1b,VillagerData:{profession:"minecraft:farmer",level:2,type:"minecraft:plains"},Offers:{Recipes:[{buy:{id:"minecraft:wheat",count:1},sell:{id:"minecraft:diamond_sword",count:1},maxUses:1,uses:0,xp:0}]}}
+wait 1
+interact-last
+trade 0
+cmd execute if items entity @s container.* minecraft:diamond_sword
+expect commands.execute.conditional.pass_count
+cmd clear @s minecraft:diamond_sword
+wait 1
+# second trade of the same, now sold-out-by-vanilla offer
+trade 0
+cmd execute if items entity @s container.* minecraft:diamond_sword
+expect commands.execute.conditional.pass_count
+# third as well (never runs out)
+cmd clear @s minecraft:diamond_sword
+wait 1
+trade 0
+cmd execute if items entity @s container.* minecraft:diamond_sword
+expect commands.execute.conditional.pass_count

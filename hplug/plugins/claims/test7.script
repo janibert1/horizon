@@ -1,0 +1,4 @@
+# client: Griefer
+wait 1
+break 96 144 -32
+expect Only members can build at spawn

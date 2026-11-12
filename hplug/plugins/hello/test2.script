@@ -1,0 +1,10 @@
+# client: PermTester
+wait 1
+cmd permtest
+expect PERM vip=true admin=false other=true
+cmd tasktest
+expect tasks scheduled
+expect TASK-REPEAT 1
+expect TASK-REPEAT 3
+expect TASK-DONE
+wait 3

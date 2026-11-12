@@ -1,0 +1,10 @@
+# an op reverses the teleport and the gamemode change
+# client: Tester
+cmd thg reverse 4
+expect Reversed #4
+cmd thg reverse 4
+expect already reversed
+cmd thg reverse 1
+expect Reversed #1
+cmd thg reverse 2
+expect blocked attempt

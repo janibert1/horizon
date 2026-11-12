@@ -1,0 +1,21 @@
+wait 1
+cmd npc create Guide
+expect Created NPC Guide (id 1).
+cmd npc list
+expect #1 Guide
+cmd npc cmd 1 add console say hi {player}
+expect NPC commands updated.
+cmd npc lookclose 1 on
+expect NPC updated.
+wait 3
+cmd execute if entity @e[type=minecraft:mannequin,tag=hpnpc_1]
+expect commands.execute.conditional.pass
+cmd scoreboard objectives add npcn dummy
+cmd execute store result score Tester npcn if entity @e[type=minecraft:mannequin,tag=hpnpc_1]
+cmd execute if score Tester npcn matches 1
+expect commands.execute.conditional.pass
+cmd npc remove 1
+expect Removed NPC Guide.
+wait 1
+cmd execute if entity @e[type=minecraft:mannequin,tag=hpnpc_1]
+expect commands.execute.conditional.fail

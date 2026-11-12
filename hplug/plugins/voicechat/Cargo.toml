@@ -1,0 +1,11 @@
+[package]
+name = "hplug-plugin-voicechat"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hplug = { path = "../../sdk" }
+aes-gcm = "0.10"
+hmac = "0.12"
+sha2 = "0.10"
+getrandom = "0.2"

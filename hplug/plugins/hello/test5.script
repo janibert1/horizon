@@ -1,0 +1,7 @@
+# on_advancement: granting an advancement is heard with its id; revoking is not "done"
+cmd advecho on
+expect advancement echo on
+cmd advancement grant @s only minecraft:story/mine_stone
+expect [hello] advancement minecraft:story/mine_stone
+cmd advancement revoke @s only minecraft:story/mine_stone
+expect-none [hello] advancement

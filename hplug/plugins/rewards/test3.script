@@ -1,0 +1,74 @@
+# Test cosmetics web shop RCON API and weblinks
+# 1. Weblink creation and verify
+cmd reward weblink Alice LINK1234
+expect Set link code LINK1234 for Alice
+cmd reward web verify LINK1234
+expect OK aaaaaaaa-0000-0000-0000-000000000001 Alice
+
+# Negative control: code can only be consumed once
+cmd reward web verify LINK1234
+expect INVALID
+
+# Negative control: invalid code
+cmd reward web verify NOCHANCE
+expect INVALID
+
+# 2. Check balance and owned
+cmd reward set aaaaaaaa-0000-0000-0000-000000000001 500
+expect Set Alice's balance to 500 Shards
+cmd reward web balance aaaaaaaa-0000-0000-0000-000000000001
+expect OK 500
+cmd reward web owned aaaaaaaa-0000-0000-0000-000000000001
+expect OK
+cmd reward web owns aaaaaaaa-0000-0000-0000-000000000001 cat_hat
+expect OK false
+
+# 3. Buy cosmetic
+cmd reward web buy aaaaaaaa-0000-0000-0000-000000000001 100 cat_hat
+expect OK
+cmd reward web balance aaaaaaaa-0000-0000-0000-000000000001
+expect OK 400
+cmd reward web owns aaaaaaaa-0000-0000-0000-000000000001 cat_hat
+expect OK true
+cmd reward web owned aaaaaaaa-0000-0000-0000-000000000001
+expect OK cat_hat
+
+# Negative control: already owned
+cmd reward web buy aaaaaaaa-0000-0000-0000-000000000001 100 cat_hat
+expect ALREADY_OWNED
+
+# Negative control: insufficient funds
+cmd reward web buy aaaaaaaa-0000-0000-0000-000000000001 9999 dragon_wings
+expect INSUFFICIENT_FUNDS
+
+# 4. Buy pack
+cmd reward web buypack aaaaaaaa-0000-0000-0000-000000000001 starter_pack 150 halo,cape
+expect OK
+cmd reward web balance aaaaaaaa-0000-0000-0000-000000000001
+expect OK 250
+cmd reward web owns aaaaaaaa-0000-0000-0000-000000000001 halo
+expect OK true
+cmd reward web owns aaaaaaaa-0000-0000-0000-000000000001 cape
+expect OK true
+
+# Negative control: pack already owned
+cmd reward web buypack aaaaaaaa-0000-0000-0000-000000000001 starter_pack 150 halo,cape
+expect ALREADY_OWNED
+
+# 5. Buy rank
+cmd reward web buyrank aaaaaaaa-0000-0000-0000-000000000001 100 2
+expect OK
+cmd reward web balance aaaaaaaa-0000-0000-0000-000000000001
+expect OK 150
+cmd reward web owned aaaaaaaa-0000-0000-0000-000000000001
+expect cat_hat,halo,cape,rank1,rank2
+
+# Negative control: bad rank tier
+cmd reward web buyrank aaaaaaaa-0000-0000-0000-000000000001 50 9
+expect ERROR bad-tier
+
+# Negative control: bad uuid
+cmd reward web balance not-a-valid-uuid
+expect ERROR bad-uuid
+
+expect-none That command failed

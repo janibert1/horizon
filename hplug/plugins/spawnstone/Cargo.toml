@@ -1,0 +1,10 @@
+[package]
+name = "hplug-plugin-spawnstone"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hplug = { path = "../../sdk" }
+hplug-plugin-claims = { path = "../claims" }
+serde = { version = "1", features = ["derive"] }
+hplug-plugin-npcs = { path = "../npcs" }

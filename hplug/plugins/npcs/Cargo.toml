@@ -1,0 +1,8 @@
+[package]
+name = "hplug-plugin-npcs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hplug = { path = "../../sdk" }
+horizon-world = { path = "../../../crates/horizon-world" }

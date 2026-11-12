@@ -1,0 +1,6 @@
+# trusted: the break goes through (no refusal)
+# client: Griefer
+wait 1
+break 96 144 -32
+expect-none claimed by
+wait 1

@@ -1,0 +1,14 @@
+# spawn stone sends the owner back home; members and cooldowns
+# client: Tester
+cmd tp Tester 96 146 -32
+wait 1
+use 96 145 -32
+expect The stone hums
+wait 6
+expect-pos 300.5 101 300.5 3
+cmd spawnstone addmember Tester
+expect already owns a stone
+cmd spawnstoneadmin removeplayerstone Tester
+expect removed
+cmd spawnstone info
+expect no stone

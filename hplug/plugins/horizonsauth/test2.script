@@ -1,0 +1,6 @@
+# same IP within 7 days: no password needed
+# client: Cracky
+wait 1
+expect Welcome back
+cmd list
+expect commands.list.players

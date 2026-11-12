@@ -1,0 +1,103 @@
+# Help command
+cmd ph
+expect PhantomHeads Commands
+
+# Create a floating head at player's location
+cmd ph create test1
+expect created at your location
+wait 2
+
+# Verify head and interaction entities are summoned
+cmd execute if entity @e[tag=ph_test1_head]
+expect commands.execute.conditional.pass_count
+cmd execute if entity @e[tag=ph_test1_click]
+expect commands.execute.conditional.pass_count
+
+# Negative control: non-existent head must NOT exist
+cmd execute if entity @e[tag=ph_nonexistent_head]
+expect commands.execute.conditional.fail
+
+# Negative control setup: summon a floatingheads entity to verify isolation
+cmd summon armor_stand ~ ~ ~ {Tags:["fh_other"]}
+wait 1
+cmd execute if entity @e[tag=fh_other]
+expect commands.execute.conditional.pass_count
+
+# Info, list and near commands
+cmd ph info test1
+expect --- test1 ---
+cmd ph list
+expect test1
+cmd ph near 50
+expect test1
+
+# Hologram line addition and verification
+cmd ph line add test1 Welcome to Phantom SMP!
+expect Line 0 added
+wait 1
+cmd execute if entity @e[tag=ph_test1_line]
+expect commands.execute.conditional.pass_count
+cmd ph line list test1
+expect Welcome to Phantom SMP!
+
+# Action configuration
+cmd ph action test1 add message Hello %player_name%!
+expect Added message action
+cmd ph action test1 list message
+expect Hello %player_name%!
+
+# Hologram toggle: disabling removes text_display entities
+cmd ph hologram disable test1
+expect test1 disabled
+wait 1
+cmd execute if entity @e[tag=ph_test1_line]
+expect commands.execute.conditional.fail
+
+# Hologram toggle: re-enabling re-spawns text_display entities
+cmd ph hologram enable test1
+expect test1 enabled
+wait 1
+cmd execute if entity @e[tag=ph_test1_line]
+expect commands.execute.conditional.pass_count
+
+# Disable head: removes all entities
+cmd ph disable test1
+expect test1 disabled
+wait 1
+cmd execute if entity @e[tag=ph_test1_head]
+expect commands.execute.conditional.fail
+
+# Re-enable head: re-spawns entities
+cmd ph enable test1
+expect test1 enabled
+wait 1
+cmd execute if entity @e[tag=ph_test1_head]
+expect commands.execute.conditional.pass_count
+
+# Clone head to test2
+cmd ph clone test1 test2
+expect Cloned test1
+wait 1
+cmd execute if entity @e[tag=ph_test2_head]
+expect commands.execute.conditional.pass_count
+
+# Delete heads and verify negative controls
+cmd ph delete test1
+expect Head test1 deleted
+wait 1
+cmd execute if entity @e[tag=ph_test1]
+expect commands.execute.conditional.fail
+
+# CRITICAL NEGATIVE CONTROL: floatingheads entity fh_other was NOT touched by ph delete!
+cmd execute if entity @e[tag=fh_other]
+expect commands.execute.conditional.pass_count
+
+cmd ph delete test2
+expect Head test2 deleted
+wait 1
+cmd execute if entity @e[tag=ph_test2]
+expect commands.execute.conditional.fail
+
+# Final check: fh_other STILL exists!
+cmd execute if entity @e[tag=fh_other]
+expect commands.execute.conditional.pass_count

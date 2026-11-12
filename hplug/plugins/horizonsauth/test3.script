@@ -1,0 +1,7 @@
+# an op clears the session
+# client: Tester
+wait 1
+cmd horizonsauth info Cracky
+expect registered=true
+cmd horizonsauth deauth Cracky
+expect Session cleared

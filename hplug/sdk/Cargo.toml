@@ -1,0 +1,9 @@
+[package]
+name = "hplug"
+version = "0.1.0"
+edition = "2024"
+description = "Small, stable, Paper-flavoured facade over Horizon's server-side native mod API"
+
+[dependencies]
+horizon-client = { path = "../../crates/horizon-client", default-features = false }
+horizon-world = { path = "../../crates/horizon-world" }

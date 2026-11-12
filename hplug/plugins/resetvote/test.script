@@ -1,0 +1,32 @@
+# vote, change, status, console-API style output (Tester is op)
+wait 1
+cmd vote reset status
+expect 0 yes / 0 no
+cmd vote reset yes
+expect Vote recorded: YES
+cmd vote reset no
+expect Vote changed to NO
+cmd vote reset yes
+cmd resetvoteadmin webstatus
+expect OK 1 0 0 7 0 false
+cmd resetvoteadmin webvote Tester no
+expect OK no
+cmd resetvoteadmin webstatus
+expect OK 0 1
+cmd resetvoteadmin webunvote Tester
+expect OK removed
+cmd resetvoteadmin webstatus
+expect OK 0 0
+# control: removing again finds no vote; an unknown name is UNKNOWN
+cmd resetvoteadmin webunvote Tester
+expect OK novote
+cmd resetvoteadmin webunvote Nobody
+expect UNKNOWN
+cmd resetvoteadmin webvote Tester no
+expect OK no
+cmd resetvoteadmin webvote Nobody yes
+expect UNKNOWN
+cmd resetvoteadmin newseason
+expect cleared all votes
+cmd resetvoteadmin webstatus
+expect OK 0 0

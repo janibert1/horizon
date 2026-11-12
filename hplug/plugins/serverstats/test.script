@@ -1,0 +1,13 @@
+# console/RCON tps, mspt, perfmon stats in the formats the Discord bot parses (numbers, not exact values)
+wait 4
+cmd tps
+expect TPS from last 1m, 5m, 15m: 20.00, 20.00, 20.00
+cmd mspt
+expect Server tick times (avg/min/max) from last 5s, 10s, 1m:
+cmd perfmon stats
+expect MSPT 1m: min=
+cmd perfmon stats
+expect p99=
+# control: a wrong subcommand is refused (op level 2: Tester is op)
+cmd perfmon nonsense
+expect Usage: /perfmon stats

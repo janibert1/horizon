@@ -1,0 +1,43 @@
+# hp-client script for MerchantLink Phase 5: Persistence across scripts
+wait 1
+cmd ml spawn
+expect Merchant spawned.
+
+# Verify state persisted from test.script (0 supply chests, 1 return chest, 1 listing for iron ingot)
+cmd ml status
+expect with 0 supply chests, 1 return chest, 1 listings.
+
+# Re-link supply chest 1
+cmd setblock 96 144 -30 minecraft:chest
+cmd ml link supply
+expect Left-click the chest to link as your Supply chest.
+break 96 144 -30
+expect Supply chest linked.
+
+# Add a second listing (gold ingot)
+cmd ml stock add supply1 minecraft:gold_ingot 5
+expect Added 5x minecraft:gold_ingot to supply1.
+
+cmd ml price minecraft:gold_ingot minecraft:emerald 1 1
+expect Price set: 1x minecraft:gold_ingot costs 1x minecraft:emerald.
+
+cmd ml status
+expect 1 supply chests, 1 return chest, 2 listings.
+
+# Purchase the new listing
+cmd give @s minecraft:emerald 2
+wait 1
+cmd ml buy Tester minecraft:gold_ingot 2
+expect Purchased 2x minecraft:gold_ingot for 2x minecraft:emerald.
+
+# Purchase the original persisted listing from test.script (iron ingot)
+cmd ml stock add supply1 minecraft:iron_ingot 3
+expect Added 3x minecraft:iron_ingot to supply1.
+cmd give @s minecraft:coal 4
+wait 1
+cmd ml buy Tester minecraft:iron_ingot 2
+expect Purchased 2x minecraft:iron_ingot for 4x minecraft:coal.
+
+cmd ml remove
+expect Merchant removed.
+expect-none That command failed

@@ -1,0 +1,17 @@
+# control: with the plugin switched off the vanilla limit holds (maxUses 1: the second trade of the offer gives nothing)
+cmd infinitetrades off
+cmd clear @s
+cmd gamemode survival
+cmd give @s minecraft:wheat 4
+wait 1
+cmd summon villager 98.5 145 -29.5 {NoAI:1b,VillagerData:{profession:"minecraft:farmer",level:2,type:"minecraft:plains"},Offers:{Recipes:[{buy:{id:"minecraft:wheat",count:1},sell:{id:"minecraft:diamond_sword",count:1},maxUses:1,uses:0,xp:0}]}}
+wait 1
+interact-last
+trade 0
+cmd execute if items entity @s container.* minecraft:diamond_sword
+expect commands.execute.conditional.pass_count
+cmd clear @s minecraft:diamond_sword
+wait 1
+trade 0
+cmd execute if items entity @s container.* minecraft:diamond_sword
+expect commands.execute.conditional.fail

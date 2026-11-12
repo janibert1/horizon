@@ -1,0 +1,9 @@
+{
+  "refresh_ticks": 20,
+  "header": ["&3&lSeason 3 Horizon", "&7&l>> {animation:Welcome}&3 &l{player}&7&l! <<", "&7Online players: &f{online}"],
+  "footer": ["{animation:time}", "&2Ping: {ping}", "&7Used memory: {memory_used} MB"],
+  "animations": {"Welcome": {"interval_ms": 500, "texts": ["Welcome", "Hello"]}, "time": {"interval_ms": 1000, "texts": ["&7{date} {time}"]}},
+  "sorting_groups": ["owner", "admin", "mod", "helper", "builder", "vip", "cosmetics-tier5", "cosmetics-tier4", "cosmetics-tier3", "cosmetics-tier2", "cosmetics-tier1", "default"],
+  "scoreboard": {"enabled": true, "title": "&6Horizons", "lines": ["&7{date}", "&6Online:", "* &eOnline&7:||{online}"]},
+  "bossbar": {"enabled": true, "bars": {"ServerInfo": {"style": "PROGRESS", "color": "blue", "progress": "100", "text": "&fWebsite: &bexample.org"}}}
+}

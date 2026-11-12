@@ -1,0 +1,6 @@
+# spawn region: strangers cannot build
+# client: Tester
+cmd claimadmin spawn set 90 -40 105 -25
+expect Spawn region set
+cmd setblock 96 144 -32 minecraft:stone
+wait 1

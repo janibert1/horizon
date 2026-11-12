@@ -1,0 +1,8 @@
+[package]
+name = "hplug-plugin-horizonsauth"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hplug = { path = "../../sdk" }
+sha2 = "0.10"

@@ -1,0 +1,22 @@
+# cosmetics: define (staff), own (ops have every node), equip/unequip, unknown ids
+wait 1
+cmd cosmetics define tophat hat minecraft:black_wool
+expect Defined cosmetic tophat (hat)
+cmd cosmetics define hearts particle minecraft:heart
+expect Defined cosmetic hearts (particle)
+cmd cosmetics list
+expect Your cosmetics (2)
+cmd cosmetics equip tophat
+expect Now wearing tophat (hat)
+wait 2
+cmd cosmetics info
+expect 1 shown now
+cmd cosmetics equip nothing
+expect Unknown cosmetic 'nothing'
+cmd cosmetics unequip hat
+expect Took off: hat
+wait 2
+cmd cosmetics info
+expect 0 shown now
+cmd cosmetics undefine tophat
+expect Removed cosmetic tophat

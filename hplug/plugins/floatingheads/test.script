@@ -1,0 +1,93 @@
+# Help command
+cmd fh
+expect FloatingHeads Commands
+
+# Create a floating head at player's location
+cmd fh create test1
+expect created at your location
+wait 2
+
+# Verify head and interaction entities are summoned
+cmd execute if entity @e[tag=fh_test1_head]
+expect commands.execute.conditional.pass_count
+cmd execute if entity @e[tag=fh_test1_click]
+expect commands.execute.conditional.pass_count
+
+# Negative control: non-existent head must NOT exist
+cmd execute if entity @e[tag=fh_nonexistent_head]
+expect commands.execute.conditional.fail
+
+# Info, list and near commands
+cmd fh info test1
+expect --- Head: test1 ---
+cmd fh list
+expect test1
+cmd fh near 50
+expect test1
+
+# Hologram line addition and verification
+cmd fh line add test1 Welcome to the Server!
+expect Line 0 added
+wait 1
+cmd execute if entity @e[tag=fh_test1_line]
+expect commands.execute.conditional.pass_count
+cmd fh line list test1
+expect Welcome to the Server!
+
+# Action configuration
+cmd fh action test1 add message Hello %player_name%!
+expect Added message action
+cmd fh action test1 list message
+expect Hello %player_name%!
+
+# Hologram toggle: disabling removes text_display entities
+cmd fh hologram disable test1
+expect Hologram for test1 disabled
+wait 1
+cmd execute if entity @e[tag=fh_test1_line]
+expect commands.execute.conditional.fail
+
+# Hologram toggle: re-enabling re-spawns text_display entities
+cmd fh hologram enable test1
+expect Hologram for test1 enabled
+wait 1
+cmd execute if entity @e[tag=fh_test1_line]
+expect commands.execute.conditional.pass_count
+
+# Disable head: removes all entities
+cmd fh disable test1
+expect test1 disabled
+wait 1
+cmd execute if entity @e[tag=fh_test1_head]
+expect commands.execute.conditional.fail
+
+# Re-enable head: re-spawns entities
+cmd fh enable test1
+expect test1 enabled
+wait 1
+cmd execute if entity @e[tag=fh_test1_head]
+expect commands.execute.conditional.pass_count
+
+# (the /ph alias was removed: phantom-heads is its own plugin now)
+cmd fh list
+expect test1
+
+# Clone head to test2
+cmd fh clone test1 test2
+expect Cloned test1
+wait 1
+cmd execute if entity @e[tag=fh_test2_head]
+expect commands.execute.conditional.pass_count
+
+# Delete heads and verify negative controls
+cmd fh delete test1
+expect Head test1 deleted
+wait 1
+cmd execute if entity @e[tag=fh_test1]
+expect commands.execute.conditional.fail
+
+cmd fh delete test2
+expect Head test2 deleted
+wait 1
+cmd execute if entity @e[tag=fh_test2]
+expect commands.execute.conditional.fail

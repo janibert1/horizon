@@ -1,0 +1,14 @@
+# Ori's spawn-build approval sends WorldGuard's `rg addmember -w world spawn <name>` over RCON
+cmd claimadmin spawn set 5000 5000 5100 5100
+expect Spawn region set
+cmd rg addmember -w world spawn Tester
+expect Added player Tester to region 'spawn'.
+cmd claimadmin spawn add Tester
+expect is now one of the spawn builders
+# control: an unknown region, and a missing player, are refused
+cmd rg addmember -w world nowhere Tester
+expect Could not find a region by that ID: nowhere
+cmd rg addmember -w world spawn NoSuchPlayer404
+expect Unknown player
+cmd rg removemember -w world spawn Tester
+expect Removed player Tester from region 'spawn'.

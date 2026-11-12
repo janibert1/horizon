@@ -1,0 +1,80 @@
+# hp-client script for MerchantLink: Spawn, Linking, Pricing, Rollback, GUI & Purchases
+wait 1
+cmd ml status
+expect You do not have a merchant.
+cmd ml spawn
+expect Merchant spawned.
+cmd ml status
+expect Merchant active at
+cmd ml spawn
+expect You already have a merchant active at
+
+cmd setblock 96 144 -30 minecraft:chest
+cmd setblock 96 144 -28 minecraft:chest
+
+cmd ml link supply
+expect Left-click the chest to link as your Supply chest.
+break 96 144 -30
+expect Supply chest linked.
+
+cmd ml link return
+expect Left-click the chest to link as your Return chest.
+break 96 144 -28
+expect Return chest linked.
+
+cmd ml stock add supply1 minecraft:iron_ingot 10
+expect Added 10x minecraft:iron_ingot to supply1.
+
+cmd ml price minecraft:iron_ingot minecraft:coal 2 1
+expect Price set: 1x minecraft:iron_ingot costs 2x minecraft:coal.
+
+cmd ml status
+expect 1 supply chests, 1 return chest, 1 listings.
+
+# Rollback test 1: Buyer has 0 coal, buy fails, inventory untouched
+cmd ml buy Tester minecraft:iron_ingot 1
+expect You do not have the required barter items.
+
+# Rollback test 2: Buyer has 50 coal, tries to buy 20 (stock is only 10), buy fails, coal untouched
+cmd give @s minecraft:coal 50
+wait 1
+cmd ml buy Tester minecraft:iron_ingot 20
+expect Insufficient stock for bulk purchase (10/20 available).
+
+# Rollback test 3: Return chest is full, buy fails, coal untouched
+cmd ml test fill_return
+expect Return chest filled to maximum capacity.
+cmd ml buy Tester minecraft:iron_ingot 1
+expect Return chest cannot hold payment for that bulk purchase.
+
+# Reset return chest for legitimate trades
+cmd ml unlink return
+expect return chest unlinked.
+cmd ml link return
+expect Left-click the chest to link as your Return chest.
+break 96 144 -28
+expect Return chest linked.
+
+# Successful purchase via /ml buy
+cmd ml buy Tester minecraft:iron_ingot 2
+expect Purchased 2x minecraft:iron_ingot for 4x minecraft:coal.
+
+# Shop GUI & menu click path test (buying 1 via menu click)
+cmd ml shop Tester
+expect Shop GUI opened.
+cmd ml test click 0 0 0
+expect Purchased 1x minecraft:iron_ingot for 2x minecraft:coal.
+
+# Management GUI & menu click path test (unlinking supply chest via menu click)
+cmd ml manage
+expect Management GUI opened.
+cmd ml test click 10 0 0
+expect Supply chest 1 unlinked.
+
+# Cleanup
+cmd ml remove
+expect Merchant removed.
+cmd ml status
+expect You do not have a merchant.
+
+expect-none That command failed

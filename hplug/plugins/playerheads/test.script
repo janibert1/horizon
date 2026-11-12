@@ -1,0 +1,7 @@
+# dying drops a named player head at the death place
+cmd gamemode survival
+wait 1
+cmd kill Tester
+wait 1
+cmd execute if entity @e[type=item,nbt={Item:{id:"minecraft:player_head"}}]
+expect commands.execute.conditional.pass_count

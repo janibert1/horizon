@@ -1,0 +1,37 @@
+# TAB: header/footer refresh, sorting teams (primary group -> tab_<index>), sidebar objective, boss bar, toggles
+wait 3
+cmd tab reload
+expect Tab list and display names refreshed.
+wait 3
+# the test player's primary group is `default`: index 11 of the live sorting list
+cmd execute if entity @a[team=tab_11,name=Tester] run tellraw Tester "TEAM tab_11"
+expect TEAM tab_11
+cmd lp creategroup vip
+cmd lp group vip setweight 50
+cmd lp user Tester parent add vip
+wait 3
+cmd execute if entity @a[team=tab_05,name=Tester] run tellraw Tester "TEAM tab_05"
+expect TEAM tab_05
+cmd execute if score #tab00 tab_sb matches 3 run tellraw Tester "SIDEBAR 3 lines"
+expect SIDEBAR 3 lines
+cmd scoreboard objectives add tabt dummy
+cmd execute store result score Tester tabt run bossbar get tab:serverinfo value
+cmd execute if score Tester tabt matches 100 run tellraw Tester "BAR 100"
+expect BAR 100
+cmd tab bossbar
+expect Boss bars hidden.
+cmd execute if entity @a[tag=tab_nobar,name=Tester] run tellraw Tester "BAR HIDDEN"
+expect BAR HIDDEN
+cmd tab bossbar
+expect Boss bars shown.
+cmd sb
+expect Sidebar hidden.
+wait 2
+# the objective is gone: adding one of that name works again
+cmd scoreboard objectives add tab_sb dummy
+expect commands.scoreboard.objectives.add.success
+cmd scoreboard objectives remove tab_sb
+wait 1
+cmd sb
+expect Sidebar shown.
+expect-none panicked

@@ -1,0 +1,10 @@
+wait 1
+cmd invsee Tester
+expect That is your own inventory.
+cmd invsee Nobody
+expect is not online and has never joined.
+cmd endersee Tester
+expect-none Cannot open that
+cmd invsee Tester ender
+expect-none Cannot open that
+expect-none panicked

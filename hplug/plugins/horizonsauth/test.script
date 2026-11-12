@@ -1,0 +1,15 @@
+# cracked newcomer: frozen/gated until /register
+# client: Cracky
+wait 1
+cmd list
+expect Authenticate first: /register
+chat hello before auth
+expect Authenticate first
+cmd register abc 123456
+expect Passwords don't match
+cmd register short short
+expect at least 6 characters
+cmd register secret1 secret1
+expect Registered and logged in
+cmd list
+expect commands.list.players

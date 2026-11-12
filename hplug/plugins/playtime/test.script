@@ -1,0 +1,9 @@
+cmd playtime Alice
+expect Alice's playtime: 1h 0m
+cmd pt Bob
+expect Bob's playtime: 2d 3h 5m
+cmd playtop 5
+expect Playtime Top 2
+expect Bob
+cmd playtime Nobody
+expect Player not found: Nobody

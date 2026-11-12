@@ -1,0 +1,5 @@
+# /discord answers with the invite text
+wait 1
+cmd discord
+expect Join us on Discord
+expect discord.gg/zPZBPbQgx

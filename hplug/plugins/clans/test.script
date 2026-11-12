@@ -1,0 +1,83 @@
+# clans (Clans 1.6.1 port): create cost via rewards Shards, info, bank, upgrades, pvp/joins toggles, rename,
+# clan chat, allies/enemies, requests, delete. Messages are the live plugin's en.yml wording.
+wait 1
+cmd clan
+expect Use /clan help
+cmd clan info
+expect You are not in a clan!
+cmd clan create Horizon
+expect You need 50000 to create a clan!
+cmd reward give Tester 200000 clans test
+expect new balance: 200000
+wait 1
+cmd clan create Two Words
+expect Clan name cannot include spaces.
+cmd clan create Horizon
+expect Clan Horizon created successfully!
+wait 1
+cmd rewards balance
+expect You have 150000 Shards
+cmd clan create Other
+expect You cannot create a new clan while you are a member/owner of another clan.
+cmd clan info
+expect Leader: Tester
+expect Total Members: 1/50
+cmd clan bank
+expect Clan Balance is: 25000
+cmd clan deposit 10000
+wait 1
+expect Tester deposited 10000 to the Clan Bank.
+cmd clan balance
+expect Clan Balance is: 35000
+cmd clan withdraw 999999
+expect Clan bank doesn't have enough funds.
+cmd clan withdraw 5000
+expect Tester withdrew 5000 from the Clan's Bank.
+cmd clan upgrade
+expect Clan's player slot was upgraded by Tester
+cmd clan info
+expect Total Members: 1/51
+cmd clan upgradestorage
+expect You dont have enough money. You need 30000 to upgrade Clans chest.
+cmd clan deposit 30000
+wait 1
+cmd clan upgradestorage
+expect Successfully Upgraded Clan Chest Storage.
+cmd clan info
+expect Chest: 18 slots
+cmd clan pvp
+expect Clan PvP has been disabled.
+cmd clan togglejoin
+expect Clan Join's via Invite has been disabled.
+cmd clan change Horizons
+expect Clan name changed from Horizon to Horizons.
+cmd clan change Again
+expect Limit for clan's name change reached.
+cmd cc hello clan
+expect [Clan] [Leader] Tester: hello clan
+cmd clan chat second line
+expect [Clan] [Leader] Tester: second line
+cmd clan online
+expect Online clan members: Tester
+cmd clan ally nosuchclan
+expect There is no such clan.
+cmd clan ally horizons
+expect You can't declare your own clan as an ally.
+cmd clan requests
+expect There are no join requests for your clan.
+cmd clan home
+expect This clan does not have a home set.
+cmd clan sethome
+expect Clan home has been set successfully!
+cmd clan getbanner
+expect No Clan Banner Exists.
+cmd clan leave
+expect Leaders cannot leave the clan. Transfer leadership.
+cmd clan top
+expect Top Clans List:
+expect Leader Tester
+cmd clan delete horizons
+expect was deleted successfully.
+cmd clan info
+expect You are not in a clan!
+expect-none panicked

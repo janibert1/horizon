@@ -1,0 +1,15 @@
+# chat works, mute self, chat is refused with the explanation, unmute, chat works again
+chat before mute
+expect before mute
+cmd mute Tester
+expect Muted Tester
+expect You have been muted
+chat secretword while muted
+expect You are muted and cannot send messages.
+expect-none secretword
+cmd unmute Tester
+expect Unmuted Tester
+chat after unmute
+expect after unmute
+cmd unmute Tester
+expect Tester is not muted.

@@ -1,0 +1,4 @@
+# the trusted helper (Helperx) is made an op so the vanilla commands exist; the guard still gates every elevated one
+# client: Tester
+cmd op Helperx
+wait 2

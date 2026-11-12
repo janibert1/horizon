@@ -1,0 +1,5 @@
+wait 2
+cmd votifier status
+expect Votifier:
+cmd votifier test Tester topg
+expect Test vote for Tester queued.

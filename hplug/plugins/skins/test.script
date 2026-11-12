@@ -1,0 +1,5 @@
+wait 1
+cmd skin bad-name!
+expect That is not a valid skin name.
+cmd skin clear
+expect Your skin was cleared.

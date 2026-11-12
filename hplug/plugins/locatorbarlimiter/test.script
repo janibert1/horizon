@@ -1,0 +1,29 @@
+# locator-bar-limiter: the join sets both waypoint range attributes to 300 (default).
+# hp-client shows translation keys without arguments, so values are checked through a score.
+wait 2
+cmd locatorbar status
+expect Locator bar limit: ON
+expect range 300
+cmd scoreboard objectives add lb dummy
+cmd execute store result score Tester lb run attribute Tester minecraft:waypoint_receive_range base get
+cmd execute if score Tester lb matches 300
+expect commands.execute.conditional.pass
+cmd execute store result score Tester lb run attribute Tester minecraft:waypoint_transmit_range base get
+cmd execute if score Tester lb matches 300
+expect commands.execute.conditional.pass
+# a new range reaches the online players
+cmd locatorbar range 450
+expect Locator bar range set to 450 blocks (1 online updated)
+wait 1
+cmd execute store result score Tester lb run attribute Tester minecraft:waypoint_transmit_range base get
+cmd execute if score Tester lb matches 300
+expect commands.execute.conditional.fail
+cmd execute if score Tester lb matches 450
+expect commands.execute.conditional.pass
+# off: back to the vanilla range
+cmd locatorbar off
+expect Locator bar limit disabled
+wait 1
+cmd execute store result score Tester lb run attribute Tester minecraft:waypoint_transmit_range base get
+cmd execute if score Tester lb matches 60000000
+expect commands.execute.conditional.pass

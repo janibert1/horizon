@@ -1,0 +1,14 @@
+# client: Helperx
+wait 1
+cmd gamemode survival
+expect Logged as #1
+cmd op Helperx
+expect isn't available
+cmd clear Helperx
+expect isn't available
+cmd tp 10 120 10
+expect Logged as #4
+cmd time set day
+expect isn't available
+cmd list
+expect commands.list.players

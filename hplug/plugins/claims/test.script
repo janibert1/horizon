@@ -1,0 +1,20 @@
+# an op makes a claim around the spawn point with the golden shovel
+# client: Tester
+cmd setworldspawn 96 145 -32
+cmd gamerule respawn_radius 0
+cmd setblock 96 144 -32 minecraft:stone
+cmd give Tester minecraft:golden_shovel
+wait 1
+slot 0
+cmd tp Tester 94 145 -34
+wait 1
+use 92 143 -36
+expect First corner set at 92, -36
+cmd tp Tester 98 145 -30
+wait 1
+use 100 143 -28
+expect Claim created: 81 blocks
+cmd claiminfo
+expect owned by Tester
+cmd claimblocks
+expect Claims: 1/3

@@ -1,0 +1,3 @@
+# Helperx joins once so the server knows the name
+# client: Helperx
+wait 1

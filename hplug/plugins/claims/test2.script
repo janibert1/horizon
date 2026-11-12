@@ -1,0 +1,5 @@
+# a stranger cannot break inside it
+# client: Griefer
+wait 1
+break 96 144 -32
+expect claimed by Tester

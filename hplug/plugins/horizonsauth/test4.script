@@ -1,0 +1,9 @@
+# session cleared: wrong password counts, right one logs in, password changes
+# client: Cracky
+wait 1
+cmd login wrong1
+expect Incorrect password. 4 attempt(s) left
+cmd login secret1
+expect Logged in. Welcome back
+cmd changepassword secret1 newpass1 newpass1
+expect Password changed

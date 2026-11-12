@@ -1,0 +1,7 @@
+{
+  "kits": {
+    "tools": {"delay": 10, "items": ["stonesword 1", "dpickaxe 1 efficiency:1 durability:1 name:&4Gigadrill lore:The_drill|the_heavens", "/tellraw {USERNAME} \"kit command ran\""]},
+    "once": {"delay": -1, "items": ["goldenapple 2"]}
+  },
+  "enabled_signs": ["warp", "kit"]
+}

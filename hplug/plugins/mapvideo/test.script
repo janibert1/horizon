@@ -1,0 +1,73 @@
+# Test script for hplug-plugin-mapvideo
+# 1. Status inspection on startup
+wait 1
+cmd mapvideo status
+expect === Map Video Wall Status ===
+expect Grid: 4x3 (12 positions)
+expect Positions with map ID assigned: 0/12
+expect Playback: PLAYING
+
+# 2. Assign map IDs
+cmd mapvideo createmaps 200
+expect Assigned 12 map IDs starting at #200
+cmd mapvideo status
+expect Positions with map ID assigned: 12/12
+
+# 3. Rotation configuration
+cmd mapvideo rotate 1
+expect Wall rotation set to 1
+cmd mapvideo status
+expect Rotation: 1
+
+# 4. Playback pause and resume
+cmd mapvideo pause
+expect Wall playback paused
+cmd mapvideo status
+expect Playback: PAUSED
+cmd mapvideo play
+expect Wall playback resumed
+cmd mapvideo status
+expect Playback: PLAYING
+
+# 5. Spawn wall item frames
+cmd mapvideo spawnwall north
+expect Spawned 12 wall item frames facing north
+cmd execute if entity @e[type=item_frame,tag=mapvideo_wall]
+expect commands.execute.conditional.pass
+
+# 6. Negative control: Nonexistent tag must not pass
+cmd execute if entity @e[type=item_frame,tag=nonexistent_tag]
+expect commands.execute.conditional.fail
+
+# 7. Intro lock & unlock
+cmd mapvideo lock Tester
+expect Locked Tester into intro
+cmd mapvideo status
+expect Locked viewers: 1
+expect-none Locked viewers: 0
+
+cmd mapvideo unlock Tester
+expect Unlocked Tester from intro
+cmd mapvideo status
+expect Locked viewers: 0
+expect-none Locked viewers: 1
+
+# 8. Skip command
+cmd mapvideo lock Tester
+expect Locked Tester into intro
+cmd mapvideo skip
+expect Intro skipped
+cmd mapvideo status
+expect Locked viewers: 0
+# Host::send_map: a drawn map reaches the client (needs the engine helper), a wrong-sized buffer is refused
+cmd mapvideo maptest 4242 36
+expect maptest sent=true short_refused=true
+expect MAP 4242 with-pixels
+
+# Real playback: a 2-frame cache for position 0 (fixture/wall-frames/pos_0.bin) is pushed through Host::send_map
+cmd mapvideo viewdistance 0
+expect View distance set to 0
+cmd mapvideo preprocess
+expect 1/12 positions loaded
+wait 2
+expect MAP 200 with-pixels

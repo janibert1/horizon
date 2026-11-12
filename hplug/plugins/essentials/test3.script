@@ -1,0 +1,15 @@
+# kit cooldowns as a normal player (test2.script deopped Tester and used the kits); a new connection, so the
+# vanilla command-spam counter starts at zero
+wait 2
+cmd kit tools
+expect Received kit tools.
+wait 2
+cmd kit tools
+expect You can't use that kit again for another
+wait 2
+cmd kit once
+expect You need the essentials.kits.once permission to use that kit.
+wait 2
+cmd fly
+expect You do not have access to that command.
+expect-none panicked

@@ -1,0 +1,6 @@
+# the block survived; trust the stranger
+# client: Tester
+cmd execute if block 96 144 -32 minecraft:stone
+expect conditional.pass
+cmd trust Griefer
+expect is now trusted

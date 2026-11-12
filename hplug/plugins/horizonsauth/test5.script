@@ -1,0 +1,5 @@
+# an old plaintext auth.json entry still logs in (and is upgraded to a hash)
+# client: Legacy
+wait 1
+cmd login plainpw
+expect Logged in

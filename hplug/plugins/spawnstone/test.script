@@ -1,0 +1,22 @@
+# admin places the spawn stone, a player places a base stone 100+ blocks away, right-click travels to spawn
+# client: Tester
+cmd spawnstoneadmin setspawn
+expect Spawn stone placed
+cmd spawnstone place
+expect within 100 blocks of the spawn stone
+cmd tp Tester 300 100 300
+wait 1
+cmd spawnstone place
+expect spawn stone is placed
+cmd spawnstone place
+expect already own a stone
+cmd spawnstone info
+expect Your stone is at 300 100 300
+cmd spawnstone pickup
+expect Stone moved
+cmd spawnstone pickup
+expect Wait
+use 300 100 300
+expect The stone hums
+wait 6
+expect-pos 96.5 146 -31.5 3

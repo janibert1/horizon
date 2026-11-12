@@ -1,0 +1,8 @@
+# damage hook with player victim mapping (Tester is op, so /damage is visible)
+wait 1
+cmd blockdamage on
+cmd gamemode survival
+wait 1
+cmd damage Tester 3
+expect DAMAGE-BLOCKED 3.0
+wait 1

@@ -1,0 +1,36 @@
+# essentials: homes, warps, spawn, back, afk, nick
+wait 2
+cmd sethome base
+expect Home base set to your current location.
+cmd homes
+expect Homes (1/
+cmd tp Tester ~ ~10 ~
+wait 1
+cmd home base
+expect Teleporting to base
+cmd delhome nothere
+expect Home nothere does not exist.
+cmd setwarp shop
+expect Warp shop set.
+cmd warps
+expect shop
+cmd warp nope
+expect Warp nope does not exist.
+cmd setspawn
+expect Spawn location set.
+cmd spawn
+expect Teleporting to spawn
+cmd back
+expect Teleporting to your previous location
+cmd afk
+expect Tester is now AFK.
+cmd afk
+expect Tester is no longer AFK.
+cmd nick Builder
+expect Nickname set to Builder
+cmd nick off
+expect You no longer have a nickname.
+cmd tpaccept
+expect You do not have a pending request.
+cmd seen Tester
+expect has been online
