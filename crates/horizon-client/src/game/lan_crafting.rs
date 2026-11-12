@@ -715,7 +715,7 @@ impl Game<'_> {
 
     /// The guest opened a crafting table (`CraftingTableBlock.getMenuProvider`).
     pub(super) fn lan_open_crafting(&mut self, host: &mut LanHost, conn: u32, pos: [i32; 3]) {
-        if !self.guest_may_open(host, conn, "minecraft:crafting", Some(pos)) {
+        if !self.guest_may_open(host, conn, "minecraft:crafting", table_pos(pos)) {
             return;
         }
         // ServerPlayer.openMenu closes the menu that was open.
@@ -768,7 +768,7 @@ impl Game<'_> {
             let (uuid, name) = (guest.uuid, guest.name.clone());
             let mut result = menu.slot(0).cloned();
             let vanilla = result.clone();
-            self.native_prepare_item_craft(uuid, &name, Some(pos), &mut result);
+            self.native_prepare_item_craft(uuid, &name, table_pos(pos), &mut result);
             if result != vanilla && !changed.contains(&0) {
                 changed.push(0);
             }
@@ -800,6 +800,9 @@ impl Game<'_> {
     /// `CraftingMenu.stillValid`: the block is still a crafting table and the
     /// guest is within reach of it.
     pub(super) fn lan_table_valid(&self, g: &Guest, pos: [i32; 3]) -> bool {
+        if pos == PORTABLE_TABLE {
+            return true;
+        }
         let name = &self
             .res
             .facts()
@@ -1450,4 +1453,11 @@ mod machine_recipe_placement_tests {
             "actual registered PlaceRecipe furnace failures: {failures:?}"
         );
     }
+}
+
+/// A portable crafting table: no block, always valid.
+pub(super) const PORTABLE_TABLE: [i32; 3] = [i32::MIN; 3];
+
+pub(super) fn table_pos(pos: [i32; 3]) -> Option<[i32; 3]> {
+    (pos != PORTABLE_TABLE).then_some(pos)
 }
