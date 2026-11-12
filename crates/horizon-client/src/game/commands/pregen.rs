@@ -79,6 +79,21 @@ fn duration(seconds: f64) -> String {
 }
 
 impl Game<'_> {
+    /// The running `/pregen` task, for a mod (a Chunky-compatible console
+    /// command, a status page): its dimension, chunks done, chunks in all,
+    /// whether it is paused and the seconds it has run (pauses left out).
+    /// `None` when no task runs. API @API:host_pregen_status@.
+    pub(in crate::game) fn native_pregen_status(&self) -> Option<(String, u64, u64, bool, f64)> {
+        let task = self.cmds.pregen.as_ref()?;
+        Some((
+            task.dim.id().to_owned(),
+            task.pregen.done,
+            task.pregen.total,
+            task.paused,
+            task.running_for().as_secs_f64(),
+        ))
+    }
+
     pub(super) fn cmd_pregen(&mut self, id: &str, ctx: &Context) -> R<i32> {
         match id {
             "pregen.start" => {
