@@ -13,7 +13,7 @@ Environment (all optional): HP_PROFILE=fast|release  HP_JOBS=4  HP_RESOURCES=<pr
   HP_BIN_DIR=<dir with hplug-runner horizon-server hp-client> HP_NO_BUILD=1   run tests on a box that cannot compile (4 GB VPS)
 Run it from anywhere; it works relative to the Horizon checkout it lives in (hplug/hp).
 """
-import os, pathlib, re, shutil, subprocess, sys, tempfile, time
+import os, pathlib, re, shutil, signal, socket, subprocess, sys, tempfile, time
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -153,12 +153,18 @@ def read_script(path):
     return name, refused, " ; ".join(ops)
 
 def cmd_test(names):
+    # Ensure a bounded foreground driver stopping hp still reaps this test server.
+    signal.signal(signal.SIGTERM, lambda signum, _frame: sys.exit(128 + signum))
     cmd_build()
     names = names or [n for n in plugin_names() if (PLUGINS / n / "test.script").exists()]
     scripts_of = lambda n: sorted((PLUGINS / n).glob("test*.script"))
-    port = str(int(PORT) + 1)
     failed = []
     for n in names:
+        # A prior server can still be flushing its world when its supervisor exits.
+        # Reserve a fresh loopback port for this independent throwaway server.
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = str(probe.getsockname()[1])
         tmp = pathlib.Path(tempfile.mkdtemp(prefix=f"hp-test-{n}-"))
         hs = init_server(tmp, port)
         if n != "horizonsauth":          # the auth plugin would freeze every other plugin's test player
@@ -179,7 +185,7 @@ def cmd_test(names):
                 with open(tmp / "server.toml", "a") as t: t.write("\n" + (fx / "server.toml.append").read_text())
         log = tmp / "server.log"
         f = open(log, "w")
-        proc = subprocess.Popen(["nice", "-n", "19", hs, "run", "--dir", str(tmp)], stdout=f, stderr=subprocess.STDOUT)
+        proc = subprocess.Popen(["nice", "-n", "19", hs, "run", "--dir", str(tmp)], stdout=f, stderr=subprocess.STDOUT, start_new_session=True)
         try:
             wait_ready(log, proc)
             ok = True
@@ -197,9 +203,16 @@ def cmd_test(names):
             print(f"[{'PASS' if ok else 'FAIL'}] {n}   (server log: {log})")
             if not ok: failed.append(n)
         finally:
-            proc.terminate()
+            try: os.killpg(proc.pid, signal.SIGTERM)
+            except ProcessLookupError: pass
             try: proc.wait(20)
-            except subprocess.TimeoutExpired: proc.kill()
+            except subprocess.TimeoutExpired:
+                try: os.killpg(proc.pid, signal.SIGKILL)
+                except ProcessLookupError: pass
+                proc.wait()
+            # Reap any engine descendant left after the supervisor exited.
+            try: os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError: pass
             f.close()
     sys.exit(1 if failed else 0)
 
