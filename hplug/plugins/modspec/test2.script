@@ -1,0 +1,14 @@
+# Apply the guard even to the synthetic operator; refusal and spectator control use the real hook.
+wait 1
+cmd gamemode creative Tester
+cmd tp @s 40 150 40
+expect Moderators can only teleport in spectator mode
+cmd spec
+expect return point has been saved
+wait 1
+cmd tp @s 40 150 40
+expect-pos 40 150 40 2
+cmd norm
+expect Returned to
+wait 1
+expect-none panicked

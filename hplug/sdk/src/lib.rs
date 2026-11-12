@@ -444,7 +444,7 @@ impl Plugin {
     }
     /// Paper: `PlayerTeleportEvent` (cancellable) for command and spectator-menu teleports. Return true to keep the
     /// player where they are. Portals ([`Plugin::on_portal`]), pearls and respawns are not heard here.
-    /// Needs the engine hook `player_teleport` (engine-patches/horizon-vs-41f822b.patch).
+    /// Uses upstream `player_teleport`; its Host-free callback receives a [`TeleportCtx`].
     pub fn on_teleport(
         mut self,
         f: impl Fn(&mut TeleportCtx, &Teleport) -> bool + Send + Sync + 'static,
@@ -2416,6 +2416,23 @@ impl Hooks for Plugin {
     }
     fn player_command(&self, host: &mut dyn Host, event: &mut PlayerCommandEvent<'_>) -> Flow {
         guard(&self.id, "player_command", Flow::Continue, || {
+            // Capture the command's live player before the Host-free teleport callback.
+            let current = host
+                .acting_player()
+                .filter(|p| p.uuid == event.player)
+                .or_else(|| {
+                    host.server_players()
+                        .into_iter()
+                        .find(|p| p.uuid == event.player)
+                });
+            if let Some(current) = current {
+                let mut s = self.shared.lock().unwrap_or_else(|e| e.into_inner());
+                if let Some(p) = s.cache.iter_mut().find(|p| p.uuid == current.uuid) {
+                    *p = current;
+                } else {
+                    s.cache.push(current);
+                }
+            }
             if self.cmd_filter.is_empty() {
                 return Flow::Continue;
             }
@@ -2585,6 +2602,9 @@ impl Hooks for Plugin {
                 (tick, lines, due)
             };
             for l in lines {
+                // A preceding queued command can change mode/permissions before a synchronous
+                // upstream teleport hook, which cannot consult Host itself.
+                self.refresh_players(host);
                 // this plugin's own command, then vanilla's, then (through the relay) another plugin's
                 if self.run_relayed(host, &l) {
                     continue;
