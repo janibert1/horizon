@@ -1,13 +1,18 @@
-# breaking an ATTACHED tripwire hook (survival) drops one extra string. Horizon's setblock does not compute
-# `attached` from a tripwire line and a lone hook resets it within ticks, so the break follows setblock at once, three tries (any one drop passes).
+# Keep the survival client grounded and construct a supported, complete tripwire line.
+# The old fixture replaced the block under the client with a lone hook: tick timing could
+# detach it before the break, and removing it eventually triggered the flying kick.
+cmd fill 94 144 -39 100 144 -29 minecraft:stone
+cmd fill 98 145 -37 98 145 -32 minecraft:air
+cmd setblock 98 145 -31 minecraft:stone
+cmd setblock 98 145 -38 minecraft:stone
+cmd fill 98 145 -36 98 145 -33 minecraft:tripwire[attached=true,north=true,south=true]
+cmd setblock 98 145 -37 minecraft:tripwire_hook[attached=true,facing=south]
+cmd setblock 98 145 -32 minecraft:tripwire_hook[attached=true,facing=north]
 cmd gamemode survival
 wait 1
-cmd setblock 96 144 -32 minecraft:tripwire_hook[attached=true,facing=north]
-break 96 144 -32
-cmd setblock 96 144 -32 minecraft:tripwire_hook[attached=true,facing=north]
-break 96 144 -32
-cmd setblock 96 144 -32 minecraft:tripwire_hook[attached=true,facing=north]
-break 96 144 -32
+cmd execute if block 98 145 -32 minecraft:tripwire_hook[attached=true]
+expect commands.execute.conditional.pass
+break 98 145 -32
 wait 2
 cmd execute as @e[type=item] if data entity @s Item{id:"minecraft:string"}
 expect commands.execute.conditional.pass_count
