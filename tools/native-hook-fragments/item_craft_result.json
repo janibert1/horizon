@@ -1,0 +1,17 @@
+{
+  "hooks": [
+    {
+      "name": "item_craft_result",
+      "target": "horizon_client::game::native_hooks::Game<'_>::native_item_craft_result",
+      "neoforge": "none (Bukkit's PrepareItemCraftEvent with getMatrix/setResult)",
+      "side": "server",
+      "cancellable": false,
+      "mod_api": {
+        "contract": "collect",
+        "out": "result"
+      }
+    }
+  ],
+  "rust_summary": "the crafting-grid result with its matrix after inventory and crafting-table clicks (`native_item_craft_result`).",
+  "doc_summary": "the crafting-grid result after vanilla's recipe match, with the 4 or 9 grid slots it came from: `native_item_craft_result` may change, replace or clear it (Bukkit's `PrepareItemCraftEvent` with `getMatrix()`), unlike `prepare_item_craft`, which only fills a grid vanilla has no recipe for. Bundles need \"hooks\": @API:item_craft_result@."
+}
