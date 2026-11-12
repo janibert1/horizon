@@ -1045,3 +1045,100 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
+
+fn kind_of(ender: bool) -> NativeInventoryKind {
+    if ender {
+        NativeInventoryKind::Ender
+    } else {
+        NativeInventoryKind::Player
+    }
+}
+
+impl Game<'_> {
+    /// A player's inventory (`ender` false: 41 slots, 0..9 the hotbar, 9..36 the rest, 36..40 the
+    /// armour feet to head, 40 the off hand) or ender chest (`ender` true: 27 slots), and whether it is
+    /// the live one (true) or their file's. Err while they log in or are dead, inside a player's turn
+    /// (call from a menu click or a tick), or for a player who never played here. API
+    /// @API:host_player_inventories@.
+    pub(super) fn native_player_inventory(
+        &self,
+        uuid: u128,
+        ender: bool,
+    ) -> Result<(Vec<Option<ItemStack>>, bool), String> {
+        let inv = self.native_inventory(uuid, kind_of(ender))?;
+        Ok((inv.slots, inv.online))
+    }
+
+    /// Moves the stack in `slot` of `from`'s inventory or ender chest, which must still be exactly
+    /// `expected`, whole into `to`'s (the same player's other one too): see `native_move_stack`.
+    /// API @API:host_player_inventories@.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn native_move_player_stack(
+        &mut self,
+        from: u128,
+        from_ender: bool,
+        slot: usize,
+        expected: &ItemStack,
+        to: u128,
+        to_ender: bool,
+    ) -> Result<(), String> {
+        self.native_move_stack(
+            (from, kind_of(from_ender), slot),
+            expected,
+            (to, kind_of(to_ender)),
+        )
+    }
+
+    /// Takes the stack in `slot` of a player's inventory or ender chest, which must still be exactly
+    /// `expected` (a mod's own container gets it: a clan chest, a kit editor). Live or their file; Err
+    /// and nothing changes otherwise. API @API:host_player_inventories@.
+    pub(super) fn native_take_player_stack(
+        &mut self,
+        uuid: u128,
+        ender: bool,
+        slot: usize,
+        expected: &ItemStack,
+    ) -> Result<(), String> {
+        self.native_edit_slots(uuid, kind_of(ender), |s, _| match s.get_mut(slot) {
+            Some(cell) if cell.as_ref() == Some(expected) => {
+                *cell = None;
+                Ok(())
+            }
+            _ => Err(NativeInventoryError::StackChanged),
+        })
+        .map(|((), _)| ())
+        .map_err(|e| e.to_string())
+    }
+
+    /// Puts `stack` whole into a player's inventory (the 36 main slots) or ender chest, onto equal
+    /// stacks first, or nothing changes and Err says why ("no room"). Live or their file. API
+    /// @API:host_player_inventories@.
+    pub(super) fn native_put_player_stack(
+        &mut self,
+        uuid: u128,
+        ender: bool,
+        stack: &ItemStack,
+    ) -> Result<(), String> {
+        let kind = kind_of(ender);
+        let max_stack = self
+            .res
+            .items()
+            .get(&stack.item)
+            .map_or(64, |i| i.max_stack);
+        let room = match kind {
+            NativeInventoryKind::Player => 36,
+            NativeInventoryKind::Ender => 27,
+            _ => unreachable!("kind_of only returns Player or Ender"),
+        };
+        self.native_edit_slots(uuid, kind, |s, _| {
+            if super::native_menus::fit(&mut s[..room], std::slice::from_ref(stack), &|_| max_stack)
+            {
+                Ok(())
+            } else {
+                Err(NativeInventoryError::NoRoom)
+            }
+        })
+        .map(|((), _)| ())
+        .map_err(|e| e.to_string())
+    }
+}

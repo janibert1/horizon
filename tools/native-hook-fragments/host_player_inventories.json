@@ -1,0 +1,12 @@
+{
+  "hooks": [],
+  "helpers": [
+    {"name": "player_inventory", "target": "horizon_client::game::native_inventories::Game<'_>::native_player_inventory", "mod_api": {}},
+    {"name": "move_player_stack", "target": "horizon_client::game::native_inventories::Game<'_>::native_move_player_stack", "mod_api": {}},
+    {"name": "take_player_stack", "target": "horizon_client::game::native_inventories::Game<'_>::native_take_player_stack", "mod_api": {}},
+    {"name": "put_player_stack", "target": "horizon_client::game::native_inventories::Game<'_>::native_put_player_stack", "mod_api": {}}
+  ],
+  "rust_summary": "players' inventories and ender chests, live or saved, on Host (`player_inventory`, `move_player_stack`, `take_player_stack`, `put_player_stack`).",
+  "doc_summary": "`Host::player_inventory(uuid, ender)` reads a player's 41 inventory slots or 27 ender chest slots (live, or from their file when away); `move_player_stack`, `take_player_stack` and `put_player_stack` change them one checked stack at a time, so a mod's menu (an `/invsee`, `/enderchest`, a clan chest) never copies or loses an item. Bundles need \"hooks\": @API:host_player_inventories@.",
+  "comments": ["crates/horizon-client/src/game/native_inventories.rs"]
+}
